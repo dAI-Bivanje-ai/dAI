@@ -165,7 +165,7 @@ class DataLogger:
             "chunks": chunks,
         }
 
-    def parse_file(self, filename: str) -> list[int]:
+    def parse_file(self, filename: str) -> list[dict]:
         """
         Prebere binarno datoteko in poišče pakete.
 
@@ -190,7 +190,7 @@ class DataLogger:
             result = self.parse_packet(raw_packet)
             if result:
                 packets.append(result)
-
+        """
         print(f"Veljavnih paketov: {len(packets)}/{len(positions)}")
         for p in packets[:3]:
             print(
@@ -198,5 +198,59 @@ class DataLogger:
                 f"counter={p['packet_counter']}, "
                 f"chunki={list(p['chunks'].keys())}"
             )
+        """
 
         return packets
+
+    def save_data(self, filename: str, packets: list[dict]) -> None:
+        """
+        Shrani parsirane pakete v .npz datoteko.
+
+        Iz paketov zbere timestampe in vzorce za vsak
+        senzor ter jih shrani kot numpy arraye.
+
+        Args:
+            filename (str): Ime izhodne .npz datoteke.
+            packets (list[dict]): Seznam parsiranih paketov
+                iz parse_file().
+        """
+        t_gyro = []
+        y_gyro = []
+        t_acc = []
+        y_acc = []
+        t_mag = []
+        y_mag = []
+
+        for packet in packets:
+            ts = packet["timestamp"]
+
+            if 1 in packet["chunks"]:
+                for sample in packet["chunks"][1]:
+                    t_gyro.append(ts)
+                    y_gyro.append(sample)
+
+            if 2 in packet["chunks"]:
+                for sample in packet["chunks"][2]:
+                    t_acc.append(ts)
+                    y_acc.append(sample)
+
+            if 3 in packet["chunks"]:
+                for sample in packet["chunks"][3]:
+                    t_mag.append(ts)
+                    y_mag.append(sample)
+
+        np.savez(
+            filename,
+            t_gyro=np.array(t_gyro),
+            y_gyro=np.array(y_gyro),
+            t_acc=np.array(t_acc),
+            y_acc=np.array(y_acc),
+            t_mag=np.array(t_mag),
+            y_mag=np.array(y_mag),
+        )
+
+
+if __name__ == "__main__":
+    logger = DataLogger()
+    packets = logger.parse_file("raw_data.bin")
+    logger.save_data("data.npz", packets)
