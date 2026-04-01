@@ -164,3 +164,39 @@ class DataLogger:
             "timestamp": timestamp,
             "chunks": chunks,
         }
+
+    def parse_file(self, filename: str) -> list[int]:
+        """
+        Prebere binarno datoteko in poišče pakete.
+
+        Args:
+            filename (str): Pot do .bin datoteke.
+
+        Returns:
+            list[int]: Seznam pozicij sync markerjev.
+        """
+        with open(filename, "rb") as f:
+            data = f.read()
+
+        positions = self.find_sync_markers(data)
+        packets = []
+
+        for j in range(len(positions)):
+            if j < len(positions) - 1:
+                raw_packet = data[positions[j] : positions[j + 1]]
+            else:
+                raw_packet = data[positions[j] :]
+
+            result = self.parse_packet(raw_packet)
+            if result:
+                packets.append(result)
+
+        print(f"Veljavnih paketov: {len(packets)}/{len(positions)}")
+        for p in packets[:3]:
+            print(
+                f"  ts={p['timestamp']}ms, "
+                f"counter={p['packet_counter']}, "
+                f"chunki={list(p['chunks'].keys())}"
+            )
+
+        return packets
