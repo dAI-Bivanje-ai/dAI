@@ -13,6 +13,7 @@ def window_signal(signal, window_size, step):
     Returns:
         numpy array (M, W, 3)
     """
+    
     signal_length = signal.shape[0]
     number_windows = int(np.floor(((signal_length - window_size) / step) + 1))
     windows = []
