@@ -64,4 +64,9 @@ def build_dataset(files):
     
     
     
-    
+def save_dataset(X_acc, X_gyro, y, filename="dataset.npz"):
+    """
+    Shrani dataset na disk.
+    """
+    np.savez(filename, X_acc=X_acc, X_gyro=X_gyro, y=y)
+
