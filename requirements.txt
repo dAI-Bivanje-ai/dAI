@@ -1,4 +1,1 @@
 pytest
-pyserial
-numpy
-matplotlib
