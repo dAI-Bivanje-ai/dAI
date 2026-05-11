@@ -3,12 +3,12 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - devel
+      - develop
       - release
 
 jobs:
   test:
-    if: github.ref == 'refs/heads/devel'
+    if: github.ref == 'refs/heads/develop' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -17,18 +17,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Check formatting
+        run: black --check .
+
+      - name: Run linter
+        run: flake8 .
+
       - name: Run tests
         run: pytest
-
-  deploy:
-    if: github.ref == 'refs/heads/release'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build
-        run: echo "Building..."
-
-      - name: Deploy
-        run: echo "Deploying..."
