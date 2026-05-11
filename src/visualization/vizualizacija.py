@@ -204,7 +204,7 @@ def prikazi_signal(
         t = np.arange(N) + idx_start
         x_label = "Vzorec [#]"
 
-    fig, ax = plt.subplots(figsize=(12, 5), num = f"Graf - {title}")
+    fig, ax = plt.subplots(figsize=(12, 5), num=f"Graf - {title}")
 
     colors = ["tab:red", "tab:green", "tab:blue"]
     labels = ["X", "Y", "Z"]
@@ -260,10 +260,15 @@ if __name__ == "__main__":
     acc_packets = filter_by_id(ID_ACC)
     mag_packets = filter_by_id(ID_MAG)
 
-    print(f"Gyro: od {gyro_packets[0].ts/1000:.1f}s do {gyro_packets[-1].ts/1000:.1f}s  ({(gyro_packets[-1].ts - gyro_packets[0].ts)/1000:.1f}s skupaj)")
-    print(f"Acc:  od {acc_packets[0].ts/1000:.1f}s do {acc_packets[-1].ts/1000:.1f}s  ({(acc_packets[-1].ts - acc_packets[0].ts)/1000:.1f}s skupaj)")
-    print(f"Mag:  od {mag_packets[0].ts/1000:.1f}s do {mag_packets[-1].ts/1000:.1f}s  ({(mag_packets[-1].ts - mag_packets[0].ts)/1000:.1f}s skupaj)")
-
+    print(
+        f"Gyro: od {gyro_packets[0].ts/1000:.1f}s do {gyro_packets[-1].ts/1000:.1f}s  ({(gyro_packets[-1].ts - gyro_packets[0].ts)/1000:.1f}s skupaj)"
+    )
+    print(
+        f"Acc:  od {acc_packets[0].ts/1000:.1f}s do {acc_packets[-1].ts/1000:.1f}s  ({(acc_packets[-1].ts - acc_packets[0].ts)/1000:.1f}s skupaj)"
+    )
+    print(
+        f"Mag:  od {mag_packets[0].ts/1000:.1f}s do {mag_packets[-1].ts/1000:.1f}s  ({(mag_packets[-1].ts - mag_packets[0].ts)/1000:.1f}s skupaj)"
+    )
 
     Fvz_gyro, sig_gyro = sestavi_podatke(gyro_packets)
     Fvz_acc, sig_acc = sestavi_podatke(acc_packets)
@@ -283,13 +288,13 @@ if __name__ == "__main__":
         sig_acc,
         title=f"Pospeskometer - celoten signal | Fvz = {Fvz_acc:.2f} Hz",
         unit=UNITS[ID_ACC],
-        Fvz=Fvz_acc
+        Fvz=Fvz_acc,
     )
     prikazi_signal(
         sig_mag,
         title=f"Magnetometer - celoten signal | Fvz = {Fvz_mag:.2f} Hz",
         unit=UNITS[ID_MAG],
-        Fvz=Fvz_mag
+        Fvz=Fvz_mag,
     )
 
     t_start = 85.0
@@ -303,5 +308,5 @@ if __name__ == "__main__":
         start_i=i_start,
         end_i=i_end,
         unit=UNITS[ID_GYRO],
-        Fvz=Fvz_gyro
+        Fvz=Fvz_gyro,
     )
