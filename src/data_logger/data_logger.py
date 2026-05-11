@@ -83,6 +83,8 @@ class DataLogger:
         result = bytearray()
         while i < len(stuffed_data):
             if stuffed_data[i] == 0xFE:
+                if i + 1 >= len(stuffed_data):
+                    break
                 next_byte = stuffed_data[i + 1]
                 original_byte = next_byte ^ 0xFE
                 result.append(original_byte)
@@ -252,5 +254,5 @@ class DataLogger:
 
 if __name__ == "__main__":
     logger = DataLogger()
-    packets = logger.parse_file("raw_data.bin")
-    logger.save_data("data.npz", packets)
+    logger.open()
+    logger.read_raw("delo_03.bin")
