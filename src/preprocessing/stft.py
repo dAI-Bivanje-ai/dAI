@@ -66,7 +66,35 @@ def compute_spectrograms(windows):
     result = []
     for window in windows:
         spectogram = compute_spectrogram(window)
-        spectogram = normalize_spectrogram(spectogram)
         result.append(spectogram)
 
     return np.stack(result, axis=0)
+
+
+def group_spectrograms(spectrograms, segment_length):
+    """
+    Združi zaporedne spektrograme v 2D spektrograme primerne za CNN.
+
+    Iz zaporednih 1D spektrogramov oblike (freq_bins, 3) sestavi
+    2D spektrograme oblike (freq_bins, segment_length, 3), kjer
+    x os predstavlja čas, y os pa frekvenco.
+
+    Args:
+        spectrograms: numpy array (M, freq_bins, 3) — izhod compute_spectrograms()
+        segment_length: int — število zaporednih spektrogramov v enem 2D spektrogramu
+
+    Returns:
+        numpy array (N, freq_bins, segment_length, 3) dtype=uint8
+        kjer je N = M // segment_length
+    """
+    segment = []
+    final_spectrogram = []
+
+    for spectrogram in spectrograms:
+        segment.append(spectrogram)
+        if len(segment) == segment_length:
+            stacked = np.stack(segment, axis=1)
+            final_spectrogram.append(stacked)
+            segment = []
+
+    return np.array(final_spectrogram)

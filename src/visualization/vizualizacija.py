@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Optional, Tuple, List
-from data_logger import parse_file
+from data_logger.data_logger import parse_file
 
 
 ID_GYRO = 1
