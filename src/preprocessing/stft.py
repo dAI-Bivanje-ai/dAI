@@ -52,6 +52,7 @@ def normalize_spectrogram(spec):
     S_out = np.clip(S_norm, 0, 255).astype(np.uint8)
     
     return S_out
+        
 
 
 def compute_spectrograms(windows):
@@ -67,7 +68,6 @@ def compute_spectrograms(windows):
     result = []
     for window in windows:
         spectogram = compute_spectrogram(window)
-        spectogram = normalize_spectrogram(spectogram)
         result.append(spectogram)
     
     return np.stack(result,axis=0)    
