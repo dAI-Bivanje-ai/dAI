@@ -13,18 +13,17 @@ def compute_spectrogram(window):
     """
     window_result = []
     for axis in range(3):
-        
-        
+
         signal_1d = window[:, axis]
-        
+
         hann = np.hanning(window.shape[0])
         signal_1d = signal_1d * hann
-        
+
         freq_bins = np.fft.rfft(signal_1d)
         magnitude = np.abs(freq_bins)
 
         window_result.append(magnitude)
-    
+
     return np.stack(window_result, axis=1)
 
 
@@ -38,21 +37,20 @@ def normalize_spectrogram(spec):
     Returns:
         numpy array (freq_bins, 3) dtype=uint8
     """
-    
+
     S_log = 10 * np.log10(spec + 1e-10)
-    
+
     s_min = np.min(S_log)
     s_max = np.max(S_log)
-    
+
     if s_min == s_max:
-        return np.zeros_like(spec,dtype=np.uint8)
-    
+        return np.zeros_like(spec, dtype=np.uint8)
+
     S_norm = (S_log - s_min) / (s_max - s_min) * 255
-    
+
     S_out = np.clip(S_norm, 0, 255).astype(np.uint8)
-    
+
     return S_out
-        
 
 
 def compute_spectrograms(windows):
@@ -69,8 +67,9 @@ def compute_spectrograms(windows):
     for window in windows:
         spectogram = compute_spectrogram(window)
         result.append(spectogram)
-    
-    return np.stack(result,axis=0)    
+
+    return np.stack(result, axis=0)
+
 
 def group_spectrograms(spectrograms, segment_length):
     """
@@ -90,12 +89,12 @@ def group_spectrograms(spectrograms, segment_length):
     """
     segment = []
     final_spectrogram = []
-    
+
     for spectrogram in spectrograms:
         segment.append(spectrogram)
         if len(segment) == segment_length:
-            stacked = np.stack(segment,axis=1)
+            stacked = np.stack(segment, axis=1)
             final_spectrogram.append(stacked)
             segment = []
-            
+
     return np.array(final_spectrogram)
