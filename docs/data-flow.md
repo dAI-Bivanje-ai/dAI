@@ -1,15 +1,43 @@
-# Pretok podatkov
+# Data Flow
 
-Projekt uporablja podatke iz IMU senzorja za spremljanje aktivnosti uporabnika.
+## Opis
 
-## Postopek
+Projekt uporablja IMU podatke iz STM32 naprave za zaznavanje aktivnosti uporabnika.
+Podatki potujejo skozi več faz obdelave, od zajema signalov do priprave dataseta za strojno učenje.
 
-1. STM32 zajema podatke senzorja.
-2. Python skripta `data_logger.py` bere podatke preko serijske komunikacije.
-3. Podatki se shranijo za nadaljnjo obdelavo.
-4. `label_maker.py` omogoča označevanje aktivnosti.
-5. `vizualizacija.py` prikaže rezultate in grafe.
+---
 
-## Cilj
+## Pretok podatkov
 
-Cilj projekta je analiza delovnih navad in aktivnosti med uporabo računalnika.
+```mermaid
+graph TD
+
+    A[STM32 + IMU Sensor] --> B[data_logger.py]
+
+    B --> C[Raw .bin files]
+
+    C --> D[Packet parsing]
+
+    D --> E[Signal reconstruction]
+
+    E --> F[vizualizacija.py]
+
+    F --> G[label_maker.py]
+
+    G --> H[Labeled intervals]
+
+    H --> I[windower.py]
+
+    I --> J[Signal windows]
+
+    J --> K[stft.py]
+
+    K --> L[Spectrograms]
+
+    L --> M[dataset_builder.py]
+
+    M --> N[Dataset .npz]
+
+    N --> O[ML Model]
+
+    O --> P[Activity classification]

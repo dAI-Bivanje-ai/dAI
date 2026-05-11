@@ -1,30 +1,23 @@
-# Arhitektura projekta
+## Arhitektura sistema
 
-Projekt je razdeljen na več glavnih delov.
+Projekt je razdeljen na več logičnih delov:
 
-## data_logger.py
+### Data Logger
 
-Skrbi za:
-- branje podatkov iz IMU senzorja,
-- serijsko komunikacijo,
-- shranjevanje podatkov.
+Modul `src/data_logger/` skrbi za zajem in parsanje podatkov iz STM32 naprave. Podatki se berejo preko serijske komunikacije, preverijo in shranijo za nadaljnjo obdelavo.
 
-## label_maker.py
+### Labeling
 
-Skrbi za:
-- označevanje aktivnosti,
-- pripravo podatkov za nadaljnjo analizo.
+Modul `src/labeling/` omogoča ročno označevanje aktivnosti uporabnika na podlagi signalov. Trenutne aktivnosti so tipkanje, mirovanje, uporaba telefona, uporaba miške in premik.
 
-## vizualizacija.py
+### Visualization
 
-Skrbi za:
-- prikaz grafov,
-- vizualno analizo podatkov.
+Modul `src/visualization/` skrbi za prikaz signalov iz senzorjev. Uporablja se za vizualno preverjanje podatkov in analizo gibanja.
 
-## Pretok podatkov
+### Preprocessing
 
-```mermaid
-graph TD
-    STM32 --> data_logger
-    data_logger --> label_maker
-    label_maker --> vizualizacija
+Modul `src/preprocessing/` pripravi podatke za strojno učenje. Signal se najprej razreže na časovna okna, nato se iz vsakega okna izračuna spektrogram. Končni rezultat je dataset, ki se lahko uporabi za treniranje modela.
+
+### Model
+
+Modul `src/model/` bo v prihodnje vseboval modele za klasifikacijo aktivnosti uporabnika iz IMU podatkov.
