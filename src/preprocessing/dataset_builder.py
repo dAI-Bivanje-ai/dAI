@@ -1,5 +1,5 @@
 import numpy as np
-from data_visualizer import pripravi_pakete, sestavi_podatke
+from src.visualization.data_visualizer import pripravi_pakete, sestavi_podatke
 from data_logger import DataLogger
 from windower import window_signal_seconds
 from stft import compute_spectrograms
