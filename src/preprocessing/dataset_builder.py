@@ -10,7 +10,6 @@ from windower import window_signal_seconds
 from stft import compute_spectrograms, group_spectrograms
 
 
-
 def load_session(bin_file):
     """
     Prebere eno .bin datoteko.
