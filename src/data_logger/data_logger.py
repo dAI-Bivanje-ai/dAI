@@ -83,8 +83,6 @@ class DataLogger:
         result = bytearray()
         while i < len(stuffed_data):
             if stuffed_data[i] == 0xFE:
-                if i + 1 >= len(stuffed_data):
-                    break
                 next_byte = stuffed_data[i + 1]
                 original_byte = next_byte ^ 0xFE
                 result.append(original_byte)
@@ -180,14 +178,29 @@ class DataLogger:
         with open(filename, "rb") as f:
             data = f.read()
 
-        positions = self.find_sync_markers(data)
+        cleaned = bytearray()
+        i = 0
+        while i < len(data):
+
+            if data[i] == 0x50 and data[i : i + 6] == b"Packet":
+
+                end = data.find(b"\r\n", i)
+
+                if end != -1:
+                    i = end + 2
+                    continue
+
+            cleaned.append(data[i])
+            i += 1
+
+        positions = self.find_sync_markers(bytes(cleaned))
         packets = []
 
         for j in range(len(positions)):
             if j < len(positions) - 1:
-                raw_packet = data[positions[j] : positions[j + 1]]
+                raw_packet = bytes(cleaned[positions[j] : positions[j + 1]])
             else:
-                raw_packet = data[positions[j] :]
+                raw_packet = bytes(cleaned[positions[j] :])
 
             result = self.parse_packet(raw_packet)
             if result:
@@ -253,6 +266,4 @@ class DataLogger:
 
 
 if __name__ == "__main__":
-    logger = DataLogger()
-    logger.open()
-    logger.read_raw("delo_03.bin")
+    pass
