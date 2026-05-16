@@ -151,10 +151,13 @@ class DataLogger:
             chunk_size = struct.unpack("<H", chunks_data[pos + 1 : pos + 3])[0] + 1
             chunk_data = chunks_data[pos + 4 : pos + 4 + chunk_size]
 
-            samples = []
-            for i in range(0, chunk_size, 6):
-                x, y, z = struct.unpack("<hhh", chunk_data[i : i + 6])
-                samples.append((x, y, z))
+            if chunk_id == 0x04:
+                samples = list(chunk_data)
+            else:
+                samples = []
+                for i in range(0, chunk_size, 6):
+                    x, y, z = struct.unpack("<hhh", chunk_data[i : i + 6])
+                    samples.append((x, y, z))
 
             chunks[chunk_id] = samples
             pos += 4 + chunk_size
@@ -235,6 +238,8 @@ class DataLogger:
         y_acc = []
         t_mag = []
         y_mag = []
+        t_mic = []
+        y_mic = []
 
         for packet in packets:
             ts = packet["timestamp"]
@@ -253,6 +258,10 @@ class DataLogger:
                 for sample in packet["chunks"][3]:
                     t_mag.append(ts)
                     y_mag.append(sample)
+            if 4 in packet["chunks"]:
+                for i, sample in enumerate(packet["chunks"][4]):
+                    t_mic.append(ts + i * (1000 / 8000))
+                    y_mic.append(sample)
 
         np.savez(
             filename,
@@ -262,8 +271,13 @@ class DataLogger:
             y_acc=np.array(y_acc),
             t_mag=np.array(t_mag),
             y_mag=np.array(y_mag),
+            t_mic=np.array(t_mic),
+            y_mic=np.array(y_mic),
         )
 
 
 if __name__ == "__main__":
-    pass
+    logger = DataLogger()
+    logger.open()
+    logger.read_raw("seja.bin")
+    logger.close()
