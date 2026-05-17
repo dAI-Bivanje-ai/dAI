@@ -1,7 +1,7 @@
 import struct
-
 import numpy as np
 import serial
+import time
 
 
 class DataLogger:
@@ -38,17 +38,40 @@ class DataLogger:
         if not self.ser:
             raise RuntimeError("Port ni odprt")
 
+        self.ser.write(b"OFF\r\n")
+        time.sleep(1)
+
+        self.ser.write(b"CONFIG gyro 1\r\n")
+        time.sleep(0.1)
+        self.ser.write(b"CONFIG accel 1\r\n")
+        time.sleep(0.1)
+        self.ser.write(b"CONFIG mag 1\r\n")
+        time.sleep(0.1)
+        self.ser.write(b"CONFIG mic 1\r\n")
+        time.sleep(0.1)
+
+        self.ser.reset_input_buffer()
+        self.ser.write(b"STREAM\r\n")
+        time.sleep(1)
+        self.ser.reset_input_buffer()
+
+        print(f"Snemanje v {filename}...")
+
         raw_data_file = open(filename, "wb")
         try:
             while True:
-                data = self.ser.read(1024)
+                data = self.ser.read(2048)
                 if data:
-                    print(data.hex(" "))
                     raw_data_file.write(data)
+                    print(f"  {raw_data_file.tell()} bajtov", end="\r")
         except KeyboardInterrupt:
             pass
         finally:
             raw_data_file.close()
+            self.ser.write(b"OFF\r\n")
+            time.sleep(0.2)
+            self.ser.write(b"LOG\r\n")
+            time.sleep(0.2)
 
     def find_sync_markers(self, data: bytes) -> list[int]:
         """
@@ -83,6 +106,8 @@ class DataLogger:
         result = bytearray()
         while i < len(stuffed_data):
             if stuffed_data[i] == 0xFE:
+                if i + 1 >= len(stuffed_data):
+                    break
                 next_byte = stuffed_data[i + 1]
                 original_byte = next_byte ^ 0xFE
                 result.append(original_byte)
@@ -152,7 +177,8 @@ class DataLogger:
             chunk_data = chunks_data[pos + 4 : pos + 4 + chunk_size]
 
             if chunk_id == 0x04:
-                samples = list(chunk_data)
+                samples = np.frombuffer(chunk_data, dtype=np.int8).tolist()
+
             else:
                 samples = []
                 for i in range(0, chunk_size, 6):
