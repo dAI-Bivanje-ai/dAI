@@ -1,7 +1,7 @@
 import struct
-
 import numpy as np
 import serial
+import time
 
 
 class DataLogger:
@@ -38,17 +38,40 @@ class DataLogger:
         if not self.ser:
             raise RuntimeError("Port ni odprt")
 
+        self.ser.write(b"OFF\r\n")
+        time.sleep(1)
+
+        self.ser.write(b"CONFIG gyro 1\r\n")
+        time.sleep(0.1)
+        self.ser.write(b"CONFIG accel 1\r\n")
+        time.sleep(0.1)
+        self.ser.write(b"CONFIG mag 1\r\n")
+        time.sleep(0.1)
+        self.ser.write(b"CONFIG mic 1\r\n")
+        time.sleep(0.1)
+
+        self.ser.reset_input_buffer()
+        self.ser.write(b"STREAM\r\n")
+        time.sleep(1)
+        self.ser.reset_input_buffer()
+
+        print(f"Snemanje v {filename}...")
+
         raw_data_file = open(filename, "wb")
         try:
             while True:
-                data = self.ser.read(1024)
+                data = self.ser.read(2048)
                 if data:
-                    print(data.hex(" "))
                     raw_data_file.write(data)
+                    print(f"  {raw_data_file.tell()} bajtov", end="\r")
         except KeyboardInterrupt:
             pass
         finally:
             raw_data_file.close()
+            self.ser.write(b"OFF\r\n")
+            time.sleep(0.2)
+            self.ser.write(b"LOG\r\n")
+            time.sleep(0.2)
 
     def find_sync_markers(self, data: bytes) -> list[int]:
         """
@@ -153,10 +176,14 @@ class DataLogger:
             chunk_size = struct.unpack("<H", chunks_data[pos + 1 : pos + 3])[0] + 1
             chunk_data = chunks_data[pos + 4 : pos + 4 + chunk_size]
 
-            samples = []
-            for i in range(0, chunk_size, 6):
-                x, y, z = struct.unpack("<hhh", chunk_data[i : i + 6])
-                samples.append((x, y, z))
+            if chunk_id == 0x04:
+                samples = np.frombuffer(chunk_data, dtype=np.int8).tolist()
+
+            else:
+                samples = []
+                for i in range(0, chunk_size, 6):
+                    x, y, z = struct.unpack("<hhh", chunk_data[i : i + 6])
+                    samples.append((x, y, z))
 
             chunks[chunk_id] = samples
             pos += 4 + chunk_size
@@ -180,14 +207,29 @@ class DataLogger:
         with open(filename, "rb") as f:
             data = f.read()
 
-        positions = self.find_sync_markers(data)
+        cleaned = bytearray()
+        i = 0
+        while i < len(data):
+
+            if data[i] == 0x50 and data[i : i + 6] == b"Packet":
+
+                end = data.find(b"\r\n", i)
+
+                if end != -1:
+                    i = end + 2
+                    continue
+
+            cleaned.append(data[i])
+            i += 1
+
+        positions = self.find_sync_markers(bytes(cleaned))
         packets = []
 
         for j in range(len(positions)):
             if j < len(positions) - 1:
-                raw_packet = data[positions[j] : positions[j + 1]]
+                raw_packet = bytes(cleaned[positions[j] : positions[j + 1]])
             else:
-                raw_packet = data[positions[j] :]
+                raw_packet = bytes(cleaned[positions[j] :])
 
             result = self.parse_packet(raw_packet)
             if result:
@@ -222,6 +264,8 @@ class DataLogger:
         y_acc = []
         t_mag = []
         y_mag = []
+        t_mic = []
+        y_mic = []
 
         for packet in packets:
             ts = packet["timestamp"]
@@ -240,6 +284,10 @@ class DataLogger:
                 for sample in packet["chunks"][3]:
                     t_mag.append(ts)
                     y_mag.append(sample)
+            if 4 in packet["chunks"]:
+                for i, sample in enumerate(packet["chunks"][4]):
+                    t_mic.append(ts + i * (1000 / 8000))
+                    y_mic.append(sample)
 
         np.savez(
             filename,
@@ -249,10 +297,13 @@ class DataLogger:
             y_acc=np.array(y_acc),
             t_mag=np.array(t_mag),
             y_mag=np.array(y_mag),
+            t_mic=np.array(t_mic),
+            y_mic=np.array(y_mic),
         )
 
 
 if __name__ == "__main__":
     logger = DataLogger()
     logger.open()
-    logger.read_raw("delo_03.bin")
+    logger.read_raw("seja.bin")
+    logger.close()
