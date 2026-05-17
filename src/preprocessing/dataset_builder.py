@@ -91,3 +91,25 @@ def save_dataset(X_acc, X_gyro, y, filename="dataset.npz"):
     Shrani dataset na disk.
     """
     np.savez(filename, X_acc=X_acc, X_gyro=X_gyro, y=y)
+
+if __name__ == "__main__":
+    # oznake za .bin glede na aktivnost 0 - telefon 1 - delo
+    files = [
+        ("podatki/telefon_podatki/telefon_01.bin", 0),
+        ("podatki/telefon_podatki/telefon_02.bin", 0),
+        ("podatki/delo_podatki/delo_03.bin", 1),
+    ]
+
+    X_acc, X_gyro, y = build_dataset(files)
+
+    save_dataset(
+        X_acc,
+        X_gyro,
+        y,
+        "dataset.npz",
+    )
+
+    print("Dataset ustvarjen.")
+    print("X_acc:", X_acc.shape)
+    print("X_gyro:", X_gyro.shape)
+    print("y:", y.shape)
