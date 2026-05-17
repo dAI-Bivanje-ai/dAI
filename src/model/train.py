@@ -1,0 +1,160 @@
+from pathlib import Path
+
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, random_split
+
+from src.model.cnn_model import CNNModel
+from src.model.dataset_cnn import IMUDataset
+
+DATASET_PATH = "dataset.npz"
+
+#trenutno 2 razreda delo/telefon
+NUM_CLASSES = 2
+# uteži se posodobijo po 16 primerih
+BATCH_SIZE = 16
+# prehodi čez training podatke 
+EPOCHS = 25
+# velikost koraka pri popravljanju uteži
+# 0.001 je običajna začetna vrednost za Adam opt.
+LEARNING_RATE = 0.001
+
+def train():
+    #nalozi dataset.npz v PyTorch dataset
+    dataset = IMUDataset(DATASET_PATH)
+
+    #80% podatkov uporabimo za učenje
+    train_size = int(0.8 * len(dataset))
+
+    # 20% podatkov uporabimo za validacijo
+    # preverjamo ali model deluje na pod. ki jih med učenjem ni uporabljal
+    val_size = len(dataset) - train_size
+
+    # delitev na train in validation del
+    train_dataset, val_dataset = random_split(
+        dataset,
+        [train_size, val_size],
+    )
+
+    # DataLoader iz dataseta dela batch-e
+    # shuffle = True , učni primeri se vsako epoho premešajo
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+    )
+
+    # pri validaciji ni potrebnega mešanja, ker model samo preverjamo
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+    )
+
+    # ustvari cnn model
+    # NUM_CLASSES = 2 model bo imel 2 outputa - score za delo/telfon
+    model = CNNModel(num_classes=NUM_CLASSES)
+
+    # standardna loss funkcija za klasifikacijo
+    # primerja output modela z dejanskim label-om
+    loss_fn = nn.CrossEntropyLoss()
+
+    # Adam opt. popravlja uteži
+    # model.parameters() - vse uteži in biasi v cnn
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=LEARNING_RATE,
+    )
+
+    # glavna učna zanka
+    for epoch in range(EPOCHS):
+        # model nstavimo na train mode zaradi Dropout sloja, ki je aktiven samo med učenjem
+        model.train()
+
+        total_loss = 0.0
+        correct = 0
+        total = 0
+
+        # gre čez vse batche učnih podatkov
+        for (acc, gyro), y in train_loader:
+            # pobriše stare gradiente
+            optimizer.zero_grad()
+
+            # Forward pass
+            # izrčun score-a za vsak razred
+            outputs = model(acc, gyro)
+
+            # izračun napake med napovedjo in pravilnim rezultatom
+            loss = loss_fn(outputs, y)
+
+            # Backward pass
+            # koliko mora spremeniti vsako utež, da se izguba zmanjša
+            loss.backward()
+
+            # posodobi uteži
+            optimizer.step()
+
+            # hranjenje izgube za izpis
+            total_loss += loss.item()
+
+            # izbere razred z najvišjim rezultatom
+            # (batch_size, num_classes)
+            predictions = outputs.argmax(dim=1)
+
+            # prešteje pravilne napovedi
+            correct += (predictions == y).sum().item()
+
+            # prešteje vse primere
+            total += y.size(0)
+
+        # natančnost na učnih podatkih
+        train_acc = correct / total
+
+        # model nastavimo na eval mode 
+        # Dropout se izklopi
+        model.eval()
+
+        val_correct = 0
+        val_total = 0
+
+        # pri validaciji se gradient ne računa
+        with torch.no_grad():
+            # prehod čez vse validation batch-e
+            for (acc, gyro), y in val_loader:
+
+                # model naredi napoved
+                outputs = model(acc, gyro)
+
+                # izbira razreda z najvišjim rezultatom
+                predictions = outputs.argmax(dim=1)
+
+                #prešteje pravilne napovedi
+                val_correct += (predictions == y).sum().item()
+
+                # prešteje vse val. primere
+                val_total += y.size(0)
+
+        # natančnost na validation podatkih
+        val_acc = val_correct / val_total if val_total > 0 else 0
+
+        #izpis rezultata za vsako epoho
+        print(
+            f"Epoch {epoch + 1:02d}/{EPOCHS} | "
+            f"loss={total_loss:.4f} | "
+            f"train_acc={train_acc:.3f} | "
+            f"val_acc={val_acc:.3f}"
+        )
+    # ustvari mapo models
+    Path("models").mkdir(exist_ok=True)
+
+    # shrani naučene uteži modela -> state_dict - slovar vseh naučenih parametrov
+    torch.save(
+        model.state_dict(),
+        "models/imu_cnn.pt",
+    )
+
+    print("Model shranjen v models/imu_cnn.pt")
+
+
+if __name__ == "__main__":
+    train()

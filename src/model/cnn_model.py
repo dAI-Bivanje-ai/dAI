@@ -1,52 +1,118 @@
+import torch
 import torch.nn as nn
 
 
-class CNNModel(nn.Module):
+class SensorBranch(nn.Module):
     """
-    Osnovni CNN model za klasifikacijo IMU spektrogramov.
+    Ena CNN veja za en senzor.
+
+    Vsaka veja iz spektrograma izlušči značilke (features),
+    ki opuisujejo gibanje uporabnika.
     """
 
-    def __init__(self, num_classes):
-        """
-        Inicializacija arhitekture nevronske mreže.
-
-        Parameters:
-            num_classes (int): Število izhodnih razredov/aktivnosti.
-        """
-
+    def __init__(self):
         super().__init__()
 
-        # Sequential omogoča izvajanje slojev po vrstnem redu.
         self.network = nn.Sequential(
-            # Convolution layer išče lokalne vzorce v spektrogramu.
-            # Input channel = 1 (en spektrogram)
-            # Output channel = 16 feature map.
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
-            # ReLU uvede nelinearnost v mrežo.
+            # prva konvolucija prejme 3 kanale x,y,z
+            # ustvari 16 feature map - odziv filtra na vhod
+            # filter velikosti 3x3
+            # padding doda rob okoli slike
+            nn.Conv2d(3, 16, kernel_size=3, padding=1),
+
+            # odstrani negativne vrednosti in doda nelinearnost
             nn.ReLU(),
-            # Pooling zmanjša dimenzije podatkov
-            # in zmanjša količino računanja.
+
+            # zmanjša dimenzije spektograma za prb. 2x
             nn.MaxPool2d(2),
-            # Pretvorba 2D feature map v 1D vektor.
-            nn.Flatten(),
-            # Fully connected layer.
-            # LazyLinear sam določi vhodno dimenzijo.
-            nn.LazyLinear(64),
-            # Dodatna nelinearnost.
+
+            # druga konvolucija iz 16 feature map naredi 32 kompleksnejših FM.
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
             nn.ReLU(),
-            # Output layer vrne score za vsak razred.
-            nn.Linear(64, num_classes),
+            nn.MaxPool2d(2),
+            # ne glede velikost vhoda mreža na koncu vrne (32, 4, 4)
+            nn.AdaptiveAvgPool2d((4, 4)),
+            # pretvori feature map z naučenimi značilkami senzorja v 1D vektor 
+            nn.Flatten(),
         )
 
     def forward(self, x):
         """
-        Forward pass skozi mrežo.
+        Forward pass skozi eno CNN vejo.
 
         Parameters:
-            x (Tensor): Vhodni spektrogram.
+            x (Tensor):
+                Oblika:
+                (batch, channels, freq_bins, time)
 
         Returns:
-            Tensor: Izhodni score za posamezne razrede.
+            Tensor:
+                1D feature vektor za posamezen senzor.
         """
-
         return self.network(x)
+
+
+class CNNModel(nn.Module):
+    """
+    Glavni CNN model z dvema vhodoma.
+
+    Model uporablja:
+    - ACC vejo
+    - GYRO vejo
+
+    Obe veji ločeno analizirata spektrograme,
+    nato pa njune značilke združi.
+    """
+
+    def __init__(self, num_classes):
+        """
+        Inicializacija celotnega modela.
+
+        Parameters:
+            num_classes (int):
+                Število aktivnosti / razredov.
+        """
+        super().__init__()
+
+        self.acc_branch = SensorBranch()
+        self.gyro_branch = SensorBranch()
+
+        # iz značilk napove aktivnost
+        self.classifier = nn.Sequential(
+            # Fully connected layer
+            # Input: 1024 značilk 
+            # Output: 64 značilk
+            nn.Linear(32 * 4 * 4 * 2, 64),
+            nn.ReLU(),
+            # 30% nevronov se naključno ignorira
+            nn.Dropout(0.3),
+            # Output layer
+            # Vrne rezultat za vsak razred aktivnosti
+            nn.Linear(64, num_classes),
+        )
+
+    def forward(self, acc, gyro):
+        """
+        Forward pass skozi celoten model.
+
+        Parameters:
+            acc (Tensor):
+                ACC spektrogram batch.
+
+            gyro (Tensor):
+                GYRO spektrogram batch.
+
+        Returns:
+            Tensor:
+                Score za posamezne razrede.
+        """
+        acc_features = self.acc_branch(acc)
+        gyro_features = self.gyro_branch(gyro)
+
+        # torch.cat zlepi tensorje skupaj, dim = 1 po feature dimenziji
+        combined = torch.cat(
+            [acc_features, gyro_features],
+            dim=1,
+        )
+        # iz združenih značilk classifier napove aktivnost
+        return self.classifier(combined)
