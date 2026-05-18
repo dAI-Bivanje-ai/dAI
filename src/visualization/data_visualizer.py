@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from data_logger.data_logger import DataLogger
+from src.data_logger.data_logger import DataLogger
 
 
 class Paket:
