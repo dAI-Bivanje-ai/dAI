@@ -2,39 +2,54 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
+import numpy as np
+from torch.utils.data import DataLoader
 
 from src.model.cnn_model import CNNModel
 from src.model.dataset_cnn import IMUDataset
+from src.preprocessing.dataset_builder import build_dataset
 
-DATASET_PATH = "dataset.npz"
+TRAIN_FILES = [
+    ("podatki/delo_podatki/delo_01.bin", 0),
+    ("podatki/delo_podatki/delo_02.bin", 0),
+    ("podatki/delo_podatki/delo_04.bin", 0),
+    ("podatki/delo_podatki/delo_05.bin", 0),
+    ("podatki/telefon_podatki/telefon_01.bin", 1),
+    ("podatki/telefon_podatki/telefon_02.bin", 1),
+    ("podatki/telefon_podatki/telefon_04.bin", 1),
+    ("podatki/telefon_podatki/telefon_05.bin", 1),
+]
 
-#trenutno 2 razreda delo/telefon
+VAL_FILES = [
+    ("podatki/delo_podatki/delo_03.bin", 0),
+    ("podatki/telefon_podatki/telefon_03.bin", 1),
+]
+
+
+# trenutno 2 razreda delo/telefon
 NUM_CLASSES = 2
 # uteži se posodobijo po 16 primerih
 BATCH_SIZE = 16
-# prehodi čez training podatke 
+# prehodi čez training podatke
 EPOCHS = 25
 # velikost koraka pri popravljanju uteži
 # 0.001 je običajna začetna vrednost za Adam opt.
 LEARNING_RATE = 0.001
 
+TRAIN_NPZ = "train_dataset.npz"
+VAL_NPZ = "val_dataset.npz"
+
+
 def train():
-    #nalozi dataset.npz v PyTorch dataset
-    dataset = IMUDataset(DATASET_PATH)
+    # nalozi dataset.npz v PyTorch dataset
+    X_acc_train, X_gyro_train, y_train = build_dataset(TRAIN_FILES)
+    X_acc_val, X_gyro_val, y_val = build_dataset(VAL_FILES)
 
-    #80% podatkov uporabimo za učenje
-    train_size = int(0.8 * len(dataset))
+    np.savez(TRAIN_NPZ, X_acc=X_acc_train, X_gyro=X_gyro_train, y=y_train)
+    np.savez(VAL_NPZ, X_acc=X_acc_val, X_gyro=X_gyro_val, y=y_val)
 
-    # 20% podatkov uporabimo za validacijo
-    # preverjamo ali model deluje na pod. ki jih med učenjem ni uporabljal
-    val_size = len(dataset) - train_size
-
-    # delitev na train in validation del
-    train_dataset, val_dataset = random_split(
-        dataset,
-        [train_size, val_size],
-    )
+    train_dataset = IMUDataset(TRAIN_NPZ)
+    val_dataset = IMUDataset(VAL_NPZ)
 
     # DataLoader iz dataseta dela batch-e
     # shuffle = True , učni primeri se vsako epoho premešajo
@@ -110,7 +125,7 @@ def train():
         # natančnost na učnih podatkih
         train_acc = correct / total
 
-        # model nastavimo na eval mode 
+        # model nastavimo na eval mode
         # Dropout se izklopi
         model.eval()
 
@@ -128,7 +143,7 @@ def train():
                 # izbira razreda z najvišjim rezultatom
                 predictions = outputs.argmax(dim=1)
 
-                #prešteje pravilne napovedi
+                # prešteje pravilne napovedi
                 val_correct += (predictions == y).sum().item()
 
                 # prešteje vse val. primere
@@ -137,7 +152,7 @@ def train():
         # natančnost na validation podatkih
         val_acc = val_correct / val_total if val_total > 0 else 0
 
-        #izpis rezultata za vsako epoho
+        # izpis rezultata za vsako epoho
         print(
             f"Epoch {epoch + 1:02d}/{EPOCHS} | "
             f"loss={total_loss:.4f} | "
