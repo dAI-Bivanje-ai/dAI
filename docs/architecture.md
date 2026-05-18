@@ -29,5 +29,5 @@ graph TD
     visualization --> labeling
     labeling --> preprocessing
     preprocessing --> ML_model
-    ML_model --> analytics
+    ML_model --> analyticss
 ```
