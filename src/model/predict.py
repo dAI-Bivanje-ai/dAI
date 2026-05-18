@@ -91,5 +91,5 @@ def predict_sesh(bin_file):
 
 
 if __name__ == "__main__":
-    # nastavitev poti do mešane seje
+    # nastavitev poti do mešane seje, naj bo v data_logger/
     predict_sesh("src/data_logger/seja.bin")
