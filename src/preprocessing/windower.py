@@ -26,14 +26,14 @@ def window_signal(signal, window_size, step):
     return np.array(windows)
 
 
-def window_signal_seconds(signal, Fvz, T_window=2.0, prekrivanje=0.5):
+def window_signal_seconds(signal, Fvz, T_window=2.0, prekrivanje=0.5, force_W=None):
     """
     Ovojnica ki sprejme sekunde namesto vzorcev.
     Izračuna W in S ter pokliče window_signal().
     """
-    W = T_window * Fvz
-    S = W * (1 - prekrivanje)
-
-    W = round(W)
-    S = round(S)
+    if force_W is not None:
+        W = force_W
+    else:
+        W = round(T_window * Fvz)
+    S = round(W * (1 - prekrivanje))
     return window_signal(signal, W, S)
