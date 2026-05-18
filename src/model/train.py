@@ -9,6 +9,7 @@ from src.model.cnn_model import CNNModel
 from src.model.dataset_cnn import IMUDataset
 from src.preprocessing.dataset_builder import build_dataset
 
+# večinoma sej je lokalno na računalniku, ne bomo pushali
 TRAIN_FILES = [
     ("podatki/delo_podatki/delo_01.bin", 0),
     ("podatki/delo_podatki/delo_02.bin", 0),
