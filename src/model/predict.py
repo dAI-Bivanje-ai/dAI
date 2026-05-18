@@ -4,8 +4,9 @@ import torch
 from src.model.cnn_model import CNNModel
 from src.model.dataset_cnn import IMUDataset
 from src.preprocessing.dataset_builder import build_dataset
+from src.preprocessing.dataset_builder import build_dataset, SEGMENT_LENGTH
 
-# pot do shranjenega dict_map -a 
+# pot do shranjenega dict_map -a
 MODEL_PATH = "models/imu_cnn.pt"
 
 # začasno shranimo predobdelano podatke v .npz
@@ -13,9 +14,10 @@ TEMP_DATASET_PATH = "temp_predict_dataset.npz"
 
 # pretvorba številčnega razreda v ime aktivnosti
 CLASS_NAMES = {
-    0: "TELEFON",
-    1: "DELO",
+    0: "DELO",
+    1: "TELEFON",
 }
+
 
 def predict_sesh(bin_file):
     """
@@ -38,8 +40,8 @@ def predict_sesh(bin_file):
     # začasno hrani X_acc, X_gyro in y v temp. dataset
     np.savez(
         TEMP_DATASET_PATH,
-        X_acc = X_acc,
-        X_gyro = X_gyro,
+        X_acc=X_acc,
+        X_gyro=X_gyro,
         y=y,
     )
 
@@ -59,7 +61,7 @@ def predict_sesh(bin_file):
 
     with torch.no_grad():
 
-        #prehod čez vse segmente v seji
+        # prehod čez vse segmente v seji
         for i in range(len(dataset)):
 
             # uzamemo 1 segment
@@ -73,18 +75,21 @@ def predict_sesh(bin_file):
 
             # izračun rezultata za vsak razred
             output = model(acc, gyro)
-            
+
             # izbere razred z najvišjim rezultatom
             pred = output.argmax(dim=1).item()
 
             # številčni razred v besedo
-            pred_text.append(CLASS_NAMES[pred])
+            total_sec = i * SEGMENT_LENGTH
+            minutes = total_sec // 60
+            seconds = total_sec % 60
+
+            print(f"{minutes:02d}:{seconds:02d}  {CLASS_NAMES[pred]}")
 
         # izpis napovedi
         print(" ".join(pred_text))
 
+
 if __name__ == "__main__":
     # nastavitev poti do mešane seje
-    predict_sesh("podatki/delo_podatki/delo_03.bin")
-
-
+    predict_sesh("src/data_logger/seja.bin")
