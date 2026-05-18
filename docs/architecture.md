@@ -21,3 +21,11 @@ Modul `src/preprocessing/` pripravi podatke za strojno učenje. Signal se najpre
 ### Model
 
 Modul `src/model/` bo v prihodnje vseboval modele za klasifikacijo aktivnosti uporabnika iz IMU podatkov.
+
+graph TD
+    STM32 --> data_logger
+    data_logger --> visualization
+    visualization --> labeling
+    labeling --> preprocessing
+    preprocessing --> ML_model
+    ML_model --> analytics
