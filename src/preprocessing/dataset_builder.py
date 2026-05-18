@@ -48,8 +48,11 @@ def build_dataset(files):
     for bin_file, label in files:
         fvz_acc, sig_acc, fvz_gyro, sig_gyro = load_session(bin_file)
 
-        windows_acc = window_signal_seconds(sig_acc, fvz_acc)
-        windows_gyro = window_signal_seconds(sig_gyro, fvz_gyro)
+        ACC_W = 49
+        GYRO_W = 211
+
+        windows_acc = window_signal_seconds(sig_acc, fvz_acc, force_W=ACC_W)
+        windows_gyro = window_signal_seconds(sig_gyro, fvz_gyro, force_W=GYRO_W)
 
         spectrograms_acc = compute_spectrograms(windows_acc)
         spectrograms_gyro = compute_spectrograms(windows_gyro)
@@ -91,6 +94,7 @@ def save_dataset(X_acc, X_gyro, y, filename="dataset.npz"):
     Shrani dataset na disk.
     """
     np.savez(filename, X_acc=X_acc, X_gyro=X_gyro, y=y)
+
 
 if __name__ == "__main__":
     # oznake za .bin glede na aktivnost 0 - telefon 1 - delo
