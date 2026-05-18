@@ -3,11 +3,13 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import numpy as np
+import json
 from torch.utils.data import DataLoader
 
 from src.model.cnn_model import CNNModel
 from src.model.dataset_cnn import IMUDataset
 from src.preprocessing.dataset_builder import build_dataset
+
 
 # večinoma sej je lokalno na računalniku, ne bomo pushali
 TRAIN_FILES = [
@@ -42,6 +44,10 @@ VAL_NPZ = "val_dataset.npz"
 
 
 def train():
+
+    # shranjevanje podatkov za kasnejšo vizualizacijo
+    history = {"train_loss": [], "train_acc": [], "val_acc": []}
+
     # nalozi dataset.npz v PyTorch dataset
     X_acc_train, X_gyro_train, y_train = build_dataset(TRAIN_FILES)
     X_acc_val, X_gyro_val, y_val = build_dataset(VAL_FILES)
@@ -153,6 +159,9 @@ def train():
         # natančnost na validation podatkih
         val_acc = val_correct / val_total if val_total > 0 else 0
 
+        history["train_loss"].append(total_loss)
+        history["train_acc"].append(train_acc)
+        history["val_acc"].append(val_acc)
         # izpis rezultata za vsako epoho
         print(
             f"Epoch {epoch + 1:02d}/{EPOCHS} | "
@@ -162,6 +171,9 @@ def train():
         )
     # ustvari mapo models
     Path("models").mkdir(exist_ok=True)
+
+    with open("models/history.json", "w") as f:
+        json.dump(history, f)
 
     # shrani naučene uteži modela -> state_dict - slovar vseh naučenih parametrov
     torch.save(
