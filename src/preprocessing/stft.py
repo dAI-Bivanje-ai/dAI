@@ -78,6 +78,16 @@ def compute_spectrograms(windows):
     return np.stack(result, axis=0)
 
 
+def compute_spectrograms_1d(windows):
+
+    result = []
+    for window in windows:
+        spectrogram = compute_spectrogram_1d(window)
+        result.append(spectrogram)
+
+    return np.stack(result, axis=0)
+
+
 def group_spectrograms(spectrograms, segment_length):
     """
     Združi zaporedne spektrograme v 2D spektrograme primerne za CNN.
