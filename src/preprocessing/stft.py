@@ -29,8 +29,8 @@ def compute_spectrogram(window):
 
 def compute_spectrogram_1d(window):
 
-    hann = np.hanning(window)
-    freq_bins = np.fft.rfft(len(window))
+    hann = np.hanning(len(window))
+    freq_bins = np.fft.rfft(window * hann)
     return np.abs(freq_bins)
 
 
