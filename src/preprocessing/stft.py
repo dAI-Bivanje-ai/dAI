@@ -27,6 +27,13 @@ def compute_spectrogram(window):
     return np.stack(window_result, axis=1)
 
 
+def compute_spectrogram_1d(window):
+
+    hann = np.hanning(window)
+    freq_bins = np.fft.rfft(len(window))
+    return np.abs(freq_bins)
+
+
 def normalize_spectrogram(spec):
     """
     Normalizira spektrogram na vrednosti 0–255 z log skaliranjem.
