@@ -42,6 +42,15 @@ def sestavi_podatke(
     return fvz, result
 
 
+def sestavi_podatke_mic(seznam_paketov):
+
+    packets = [p for p in seznam_paketov if p.id == 4]
+
+    result = np.concatenate([p.data for p in packets])
+
+    return 8000, result
+
+
 def prikazi_signal(
     signal: np.ndarray,
     naslov: str = "",
