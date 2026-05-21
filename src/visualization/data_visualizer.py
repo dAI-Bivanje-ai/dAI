@@ -42,13 +42,26 @@ def sestavi_podatke(
     return fvz, result
 
 
-def sestavi_podatke_mic(seznam_paketov):
+def sestavi_podatke_mic(seznam_paketov: list[Paket]) -> tuple[float, np.ndarray]:
+    """
+    Sestavi mikrofon signal iz seznama paketov.
 
+    Filtrira pakete z id == 4 (chunk 0x04) in konkatenira vzorce
+    v en 1D signal. Fvz je fiksna 8000 Hz — določena s strojno opremo,
+    ne ocenjena iz časovnih razmikov med paketi.
+
+    Args:
+        seznam_paketov: seznam Paket objektov iz pripravi_pakete()
+
+    Returns:
+        tuple: (8000.0, signal)
+            signal: numpy array (N,) — surovi int8 A-law vzorci
+    """
     packets = [p for p in seznam_paketov if p.id == 4]
 
     result = np.concatenate([p.data for p in packets])
 
-    return 8000, result
+    return 8000.0, result
 
 
 def prikazi_signal(
