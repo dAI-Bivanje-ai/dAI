@@ -10,7 +10,18 @@ sign = lambda x: math.copysign(1, x)
 
 
 def alaw_decode(sample):
+    """
+    Dekodira en A-law vzorec v linearni PCM.
 
+    Implementacija inverza A-law kompresijske formule (ITU-T G.711).
+    Vhodni int8 vzorec normaliziramo na [-1, 1] pred dekodiranjem.
+
+    Args:
+        sample: int8 — A-law kodiran vzorec
+
+    Returns:
+        float — linearni PCM vzorec v območju [-1, 1]
+    """
     # normaliziramo na območje -1 do 1
     sample /= 128
     abs_sample = math.fabs(sample)
@@ -24,6 +35,15 @@ def alaw_decode(sample):
 
 
 def alaw_decode_all(samples):
+    """
+    Dekodira cel array A-law vzorcev v linearni PCM.
+
+    Args:
+        samples: numpy array (N,) dtype=int8 — A-law kodirani vzorci
+
+    Returns:
+        numpy array (N,) dtype=float64 — linearni PCM vzorci v [-1, 1]
+    """
     result = []
     for sample in samples:
         step = alaw_decode(sample)
