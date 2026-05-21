@@ -28,7 +28,15 @@ def compute_spectrogram(window):
 
 
 def compute_spectrogram_1d(window):
+    """
+    Iz enega okna naredi spektrogram za 1D signal (mikrofon).
 
+    Args:
+        window: numpy array (W,) — eno okno
+
+    Returns:
+        numpy array (W//2 + 1,) — surove magnitude, npr. (129,) za W=256
+    """
     hann = np.hanning(len(window))
     freq_bins = np.fft.rfft(window * hann)
     return np.abs(freq_bins)
@@ -63,6 +71,7 @@ def normalize_spectrogram(spec):
 def compute_spectrograms(windows):
     """
     Naredi spektrograme za vsa okna.
+    Vsi spektrogrami so del ene seje.
 
     Args:
         windows: numpy array (M, W, 3)
@@ -79,7 +88,19 @@ def compute_spectrograms(windows):
 
 
 def compute_spectrograms_1d(windows):
+    """
+    Naredi STFT frame-e za vsa okna 1D signala (mikrofon).
 
+    Izhod je celoten STFT spektrogram seje — vsaka vrstica je en
+    časovni korak (32 ms), stolpci so frekvenčni bini.
+    Za CNN vhod je treba izhod še razrezati na fiksne segmente.
+
+    Args:
+        windows: numpy array (M, W) — vsa okna ene seje
+
+    Returns:
+        numpy array (M, W//2 + 1) — npr. (M, 129) za W=256
+    """
     result = []
     for window in windows:
         spectrogram = compute_spectrogram_1d(window)

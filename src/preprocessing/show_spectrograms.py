@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[2]
 BIN_FILE = ROOT_DIR / "podatki" / "delo_podatki" / "delo_01.bin"
 
+
 def main():
     """
     Primer pretvorbe IMU signalov v spektrograme.
@@ -34,7 +35,7 @@ def main():
     # razdelitev signalov na časovna okna
     acc_windows = window_signal_seconds(sig_acc, Fvz_acc, 2.0, 0.5)
     gyro_windows = window_signal_seconds(sig_gyro, Fvz_gyro, 2.0, 0.5)
-    
+
     # izračun spektrogramov za vsa okna
     spec_acc = compute_spectrograms(acc_windows)
     spec_gyro = compute_spectrograms(gyro_windows)
