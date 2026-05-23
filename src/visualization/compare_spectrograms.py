@@ -1,8 +1,11 @@
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 from src.data_logger.data_logger import DataLogger
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
 from src.visualization.data_visualizer import pripravi_pakete, sestavi_podatke
 from src.preprocessing.windower import window_signal_seconds
 from src.preprocessing.stft import compute_spectrograms
@@ -92,10 +95,10 @@ def add_axis_labels(ax, fvz, window_size, n_windows, title):
 
 def main():
     fvz_acc_d, sig_acc_d, fvz_gyro_d, sig_gyro_d = load_session(
-        "podatki/delo_podatki/delo_01.bin"
+        str(ROOT_DIR / "podatki/delo_podatki/delo_01.bin")
     )
     fvz_acc_t, sig_acc_t, fvz_gyro_t, sig_gyro_t = load_session(
-        "podatki/telefon_podatki/telefon_01.bin"
+        str(ROOT_DIR / "podatki/telefon_podatki/telefon_01.bin")
     )
 
     spec_acc_d = compute_spectrograms(
@@ -132,7 +135,7 @@ def main():
 
     plt.tight_layout()
 
-    out_path = "models/compare_spectrograms.png"
+    out_path = str(ROOT_DIR / "models" / "compare_spectrograms.png")
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     print(f"Slika shranjena: {out_path}")
     plt.close()
@@ -177,7 +180,7 @@ def main():
 
     plt.tight_layout()
 
-    out_path_all = "models/compare_spectrograms_all.png"
+    out_path_all = str(ROOT_DIR / "models" / "compare_spectrograms_all.png")
     plt.savefig(out_path_all, dpi=150, bbox_inches="tight")
     print(f"Slika shranjena: {out_path_all}")
     plt.close()

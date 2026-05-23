@@ -1,16 +1,15 @@
+from pathlib import Path
 import numpy as np
 import torch
 
 from src.model.cnn_model import CNNModel
 from src.model.dataset_cnn import IMUDataset
-from src.preprocessing.dataset_builder import build_dataset
 from src.preprocessing.dataset_builder import build_dataset, SEGMENT_LENGTH
 
-# pot do shranjenega dict_map -a
-MODEL_PATH = "models/imu_cnn.pt"
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
-# začasno shranimo predobdelano podatke v .npz
-TEMP_DATASET_PATH = "temp_predict_dataset.npz"
+MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
+TEMP_DATASET_PATH = ROOT_DIR / "temp_predict_dataset.npz"
 
 # pretvorba številčnega razreda v ime aktivnosti
 CLASS_NAMES = {
@@ -52,7 +51,7 @@ def predict_sesh(bin_file):
     model = CNNModel(num_classes=2)
 
     # naloži shranjene uteži
-    model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
+    model.load_state_dict(torch.load(str(MODEL_PATH), map_location="cpu"))
 
     # model preklopi v eval mode
     model.eval()
@@ -91,5 +90,4 @@ def predict_sesh(bin_file):
 
 
 if __name__ == "__main__":
-    # nastavitev poti do mešane seje, naj bo v data_logger/
-    predict_sesh("src/data_logger/seja.bin")
+    predict_sesh(str(ROOT_DIR / "seja.bin"))
