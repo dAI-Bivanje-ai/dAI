@@ -30,7 +30,7 @@ def load_session_mic(bin_file):
 
     fvz_mic, mic_raw = sestavi_podatke_mic(packets)
 
-    # A-law dekodiranje: int8 → linearni PCM
+    # A-law dekodiranje iz int8
     mic_signal = alaw_decode_all(mic_raw)
 
     return fvz_mic, mic_signal
@@ -42,9 +42,9 @@ def build_dataset_mic(files):
 
     Za vsako datoteko:
       1. Naloži in dekodira signal
-      2. Razreže na 32ms STFT okna s 50% prekrivanjem → (M, 256)
-      3. Izračuna STFT frame-e → (M, 129)
-      4. Razreže STFT na 2-sekundne segmente po 62 frame-ov → (N, 129, 62)
+      2. Razreže na 32ms STFT okna s 50% prekrivanjem -> (M, 256)
+      3. Izračuna STFT frame-e -> (M, 129)
+      4. Razreže STFT na 2-sekundne segmente po 62 frame-ov -> (N, 129, 62)
       5. Doda labelo za vsak segment
 
     Na koncu: log10 normalizacija + skaliranje na [0, 1] globalno.
@@ -64,18 +64,18 @@ def build_dataset_mic(files):
 
         fvz_mic, sig_mic = load_session_mic(bin_file)
 
-        # razrežemo signal na 32ms okna s 50% prekrivanjem → (M, 256)
+        # razrežemo signal na 32ms okna s 50% prekrivanjem -> (M, 256)
         windows = window_signal_seconds(
             sig_mic, fvz_mic, T_window=0.032, prekrivanje=0.5
         )
 
-        # STFT: za vsako okno FFT → cel spektrogram seje (M, 129)
+        # STFT: za vsako okno FFT -> cel spektrogram seje (M, 129)
         spectograms = compute_spectrograms_1d(windows)
 
         # razrežemo spektrogram na 2-sekundne segmente za CNN
         for i in range(spectograms.shape[0] // SEG_FRAMES):
             segment = spectograms[i * SEG_FRAMES : (i + 1) * SEG_FRAMES]
-            segment = segment.T  # (62, 129) → (129, 62)
+            segment = segment.T  # transponiranje
             result.append((segment, label))
 
     X = []
@@ -85,8 +85,8 @@ def build_dataset_mic(files):
         X.append(segment)
         y.append(label)
 
-    X = np.stack(X)   # (N, 129, 62)
-    y = np.array(y)   # (N,)
+    X = np.stack(X)  # (N, 129, 62)
+    y = np.array(y)  # (N,)
 
     # globalna log10 normalizacija + skaliranje na [0, 1]
     X = np.log10(X + 1e-10)
