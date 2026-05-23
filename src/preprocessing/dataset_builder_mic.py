@@ -5,6 +5,7 @@ from src.data_logger.data_logger import DataLogger
 from src.preprocessing.windower import window_signal_seconds
 from src.preprocessing.stft import compute_spectrograms_1d
 from src.preprocessing.alaw import alaw_decode_all
+from src.preprocessing.filters import bandpass_mic
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
@@ -31,7 +32,10 @@ def load_session_mic(bin_file):
     # A-law dekodiranje iz int8
     mic_signal = alaw_decode_all(mic_raw)
 
-    return fvz_mic, mic_signal
+    # Filtriramo signal
+    filtered_signal = bandpass_mic(mic_signal, fvz_mic)
+
+    return fvz_mic, filtered_signal
 
 
 def build_dataset_mic(files):

@@ -1,7 +1,7 @@
 from scipy import signal
 
 
-def bandpass_mic(signal, fvz=8000.0, low_hz=80.0, filter_order=4):
+def bandpass_mic(sig, fvz=8000.0, low_hz=80.0, high_hz=3500, filter_order=4):
     """
     Band-pass Butterworth filter za mikrofon signal.
 
@@ -15,7 +15,7 @@ def bandpass_mic(signal, fvz=8000.0, low_hz=80.0, filter_order=4):
     Uporablja sosfiltfilt (zero-phase, numerično stabilen).
 
     Args:
-        signal: numpy array (N,) — linearni PCM signal (po alaw_decode)
+        sig: numpy array (N,) — linearni PCM signal (po alaw_decode)
         fvz: vzorčevalna frekvenca [Hz], privzeto 8000.0
         low_hz: spodnja mejna frekvenca [Hz], privzeto 80.0
         high_hz: zgornja mejna frekvenca [Hz], privzeto 3500.0
@@ -24,7 +24,6 @@ def bandpass_mic(signal, fvz=8000.0, low_hz=80.0, filter_order=4):
     Returns:
         numpy array (N,) — filtriran signal
     """
-    high_hz = fvz // 2
     Wn = [low_hz, high_hz]
     sos = signal.butter(filter_order, Wn, "bandpass", output="sos", fs=fvz)
-    return signal.sosfiltfilt(sos, signal)
+    return signal.sosfiltfilt(sos, sig)
