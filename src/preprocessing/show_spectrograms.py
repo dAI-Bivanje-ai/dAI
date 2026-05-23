@@ -23,7 +23,7 @@ def main():
     """
     logger = DataLogger()
     # parsanje bin datoteke
-    raw_packets = logger.parse_file(str(BIN_FILE))
+    raw_packets = logger.parse_file(str("delo_01.bin"))
 
     # priprava paketov za nadaljno uporabo
     packets = pripravi_pakete(raw_packets)
