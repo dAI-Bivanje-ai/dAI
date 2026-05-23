@@ -1,7 +1,10 @@
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
 from src.data_logger.data_logger import DataLogger
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
 from src.visualization.data_visualizer import pripravi_pakete, sestavi_podatke_mic
 from src.preprocessing.windower import window_signal_seconds
 from src.preprocessing.stft import compute_spectrograms_1d
@@ -61,8 +64,8 @@ def plot_grid(axes_row, S, title, use_all=False):
 
 
 def main():
-    fvz_g, sig_g = load_session_mic("podatki/mic_podatki/glasba_01.bin")
-    fvz_p, sig_p = load_session_mic("podatki/mic_podatki/pogovor_02.bin")
+    fvz_g, sig_g = load_session_mic(str(ROOT_DIR / "podatki/mic_podatki/glasba_01.bin"))
+    fvz_p, sig_p = load_session_mic(str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"))
 
     S_glasba = compute_stft(sig_g, fvz_g)
     S_pogovor = compute_stft(sig_p, fvz_p)
@@ -82,8 +85,9 @@ def main():
     plot_grid(axes[0], S_glasba, "GLASBA")
     plot_grid(axes[1], S_pogovor, "POGOVOR")
     plt.tight_layout()
-    plt.savefig("models/compare_spectrograms_mic.png", dpi=150, bbox_inches="tight")
-    print("Slika shranjena: models/compare_spectrograms_mic.png")
+    out_path = str(ROOT_DIR / "models" / "compare_spectrograms_mic.png")
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    print(f"Slika shranjena: {out_path}")
     plt.close()
 
     fig2, axes2 = plt.subplots(2, 1, figsize=(14, 7))
@@ -93,8 +97,9 @@ def main():
     plot_grid(axes2[0], S_glasba, "GLASBA", use_all=True)
     plot_grid(axes2[1], S_pogovor, "POGOVOR", use_all=True)
     plt.tight_layout()
-    plt.savefig("models/compare_spectrograms_mic_all.png", dpi=150, bbox_inches="tight")
-    print("Slika shranjena: models/compare_spectrograms_mic_all.png")
+    out_path_all = str(ROOT_DIR / "models" / "compare_spectrograms_mic_all.png")
+    plt.savefig(out_path_all, dpi=150, bbox_inches="tight")
+    print(f"Slika shranjena: {out_path_all}")
     plt.close()
 
 

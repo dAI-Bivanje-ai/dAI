@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import SpanSelector
 import json
-from data_logger import parse_file
-from vizualizacija import (
+from src.data_logger.data_logger import DataLogger
+from src.visualization.vizualizacija import (
     parsed_packets_to_class,
     sestavi_podatke,
     ID_ACC,
@@ -42,7 +42,8 @@ def label(bin_file, json_out):
 
     print(f"Nalaganje: {bin_file}")
 
-    packets = parse_file(bin_file)
+    _logger = DataLogger()
+    packets = _logger.parse_file(bin_file)
 
     # Pretvorba surovih paketov v objektno predstavitev,
     # ki omogoča lažje filtriranje po tipih senzorjev.

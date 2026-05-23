@@ -1,13 +1,11 @@
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from pathlib import Path
 import numpy as np
-from visualization.data_visualizer import pripravi_pakete, sestavi_podatke
-from data_logger.data_logger import DataLogger
-from windower import window_signal_seconds
-from stft import compute_spectrograms, group_spectrograms
+from src.visualization.data_visualizer import pripravi_pakete, sestavi_podatke
+from src.data_logger.data_logger import DataLogger
+from src.preprocessing.windower import window_signal_seconds
+from src.preprocessing.stft import compute_spectrograms, group_spectrograms
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def load_session(bin_file):
@@ -99,9 +97,9 @@ def save_dataset(X_acc, X_gyro, y, filename="dataset.npz"):
 if __name__ == "__main__":
     # oznake za .bin glede na aktivnost 0 - telefon 1 - delo
     files = [
-        ("podatki/telefon_podatki/telefon_01.bin", 0),
-        ("podatki/telefon_podatki/telefon_02.bin", 0),
-        ("podatki/delo_podatki/delo_03.bin", 1),
+        (str(ROOT_DIR / "podatki/telefon_podatki/telefon_01.bin"), 0),
+        (str(ROOT_DIR / "podatki/telefon_podatki/telefon_02.bin"), 0),
+        (str(ROOT_DIR / "podatki/delo_podatki/delo_03.bin"), 1),
     ]
 
     X_acc, X_gyro, y = build_dataset(files)
@@ -110,7 +108,7 @@ if __name__ == "__main__":
         X_acc,
         X_gyro,
         y,
-        "dataset.npz",
+        str(ROOT_DIR / "dataset.npz"),
     )
 
     print("Dataset ustvarjen.")

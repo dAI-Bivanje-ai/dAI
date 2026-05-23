@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Optional, Tuple, List
-from data_logger.data_logger import parse_file
+from src.data_logger.data_logger import DataLogger
 
 
 ID_GYRO = 1
@@ -240,7 +240,8 @@ if __name__ == "__main__":
 
     filename = "LOG03.bin"
 
-    parsed_packets = parse_file(filename)
+    _logger = DataLogger()
+    parsed_packets = _logger.parse_file(filename)
 
     def filter_by_id(sensor_id):
         """
