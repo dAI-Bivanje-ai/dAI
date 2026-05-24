@@ -45,16 +45,54 @@ def normalize_for_display(spec_2d):
     return s
 
 
-def spectrograms_to_image(spectrograms, n=N_WINDOWS):
+# def spectrograms_to_image(spectrograms, n=N_WINDOWS):
+#     """
+#     spectrograms: (M, freq_bins, 3)
+#     Vrne: (freq_bins, n) normalizirano za imshow z viridis
+#     """
+#     seg = get_middle_segment(spectrograms, n)  # (n, freq_bins, 3)
+#     magnitude = np.sqrt(np.sum(seg**2, axis=2))  # (n, freq_bins)
+#     img = magnitude.T  # (freq_bins, n)
+#     return normalize_for_display(img)
+
+def spectrograms_to_rgb_image(spectrograms, n=N_WINDOWS):
     """
     spectrograms: (M, freq_bins, 3)
-    Vrne: (freq_bins, n) normalizirano za imshow z viridis
-    """
-    seg = get_middle_segment(spectrograms, n)  # (n, freq_bins, 3)
-    magnitude = np.sqrt(np.sum(seg**2, axis=2))  # (n, freq_bins)
-    img = magnitude.T  # (freq_bins, n)
-    return normalize_for_display(img)
 
+    X os -> R kanal
+    Y os -> G kanal
+    Z os -> B kanal
+
+    Vrne RGB sliko:
+        (freq_bins, n_windows, 3)
+    """
+
+    seg = get_middle_segment(spectrograms, n)
+
+    channels = []
+
+    for axis in range(3):
+
+        # vzamemo eno os
+        img = seg[:, :, axis]
+
+        # (n_windows, freq_bins)
+        # za imshow rabimo:
+        # (freq_bins, n_windows)
+        img = img.T
+
+        # normalizacija 0-1
+        img = normalize_for_display(img)
+
+        channels.append(img)
+
+    # združimo:
+    # R = X
+    # G = Y
+    # B = Z
+    rgb = np.stack(channels, axis=-1)
+
+    return rgb
 
 def spectrograms_to_image_all(spectrograms):
     """
@@ -92,10 +130,10 @@ def add_axis_labels(ax, fvz, window_size, n_windows, title):
 
 def main():
     fvz_acc_d, sig_acc_d, fvz_gyro_d, sig_gyro_d = load_session(
-        "podatki/delo_podatki/delo_01.bin"
+        "podatki/delo_podatki/delo_03.bin"
     )
     fvz_acc_t, sig_acc_t, fvz_gyro_t, sig_gyro_t = load_session(
-        "podatki/telefon_podatki/telefon_01.bin"
+        "podatki/telefon_podatki/telefon_03.bin"
     )
 
     spec_acc_d = compute_spectrograms(
@@ -111,10 +149,15 @@ def main():
         window_signal_seconds(sig_gyro_t, fvz_gyro_t, force_W=GYRO_W)
     )
 
-    img_acc_d = spectrograms_to_image(spec_acc_d)
-    img_gyro_d = spectrograms_to_image(spec_gyro_d)
-    img_acc_t = spectrograms_to_image(spec_acc_t)
-    img_gyro_t = spectrograms_to_image(spec_gyro_t)
+    # img_acc_d = spectrograms_to_image(spec_acc_d)
+    # img_gyro_d = spectrograms_to_image(spec_gyro_d)
+    # img_acc_t = spectrograms_to_image(spec_acc_t)
+    # img_gyro_t = spectrograms_to_image(spec_gyro_t)
+
+    img_acc_d = spectrograms_to_rgb_image(spec_acc_d)
+    img_gyro_d = spectrograms_to_rgb_image(spec_gyro_d)
+    img_acc_t = spectrograms_to_rgb_image(spec_acc_t)
+    img_gyro_t = spectrograms_to_rgb_image(spec_gyro_t)
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 8))
     fig.suptitle(
@@ -132,15 +175,35 @@ def main():
 
     plt.tight_layout()
 
-    out_path = "models/compare_spectrograms.png"
+    out_path = "compare_spectrograms.png"
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     print(f"Slika shranjena: {out_path}")
     plt.close()
 
-    img_acc_d_all = spectrograms_to_image_all(spec_acc_d)
-    img_gyro_d_all = spectrograms_to_image_all(spec_gyro_d)
-    img_acc_t_all = spectrograms_to_image_all(spec_acc_t)
-    img_gyro_t_all = spectrograms_to_image_all(spec_gyro_t)
+    # img_acc_d_all = spectrograms_to_image_all(spec_acc_d)
+    # img_gyro_d_all = spectrograms_to_image_all(spec_gyro_d)
+    # img_acc_t_all = spectrograms_to_image_all(spec_acc_t)
+    # img_gyro_t_all = spectrograms_to_image_all(spec_gyro_t)
+
+    img_acc_d_all = spectrograms_to_rgb_image(
+    spec_acc_d,
+    spec_acc_d.shape[0],
+    )
+
+    img_gyro_d_all = spectrograms_to_rgb_image(
+        spec_gyro_d,
+        spec_gyro_d.shape[0],
+    )
+
+    img_acc_t_all = spectrograms_to_rgb_image(
+        spec_acc_t,
+        spec_acc_t.shape[0],
+    )
+
+    img_gyro_t_all = spectrograms_to_rgb_image(
+        spec_gyro_t,
+        spec_gyro_t.shape[0],
+    )
 
     fig2, axes2 = plt.subplots(2, 2, figsize=(14, 8))
     fig2.suptitle(
@@ -177,7 +240,7 @@ def main():
 
     plt.tight_layout()
 
-    out_path_all = "models/compare_spectrograms_all.png"
+    out_path_all = "compare_spectrograms_all.png"
     plt.savefig(out_path_all, dpi=150, bbox_inches="tight")
     print(f"Slika shranjena: {out_path_all}")
     plt.close()
