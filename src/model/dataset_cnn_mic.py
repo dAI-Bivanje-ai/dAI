@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 
 
-class IMUDataset(Dataset):
+class MicDataset(Dataset):
 
     def __init__(self, dataset_path):
 
