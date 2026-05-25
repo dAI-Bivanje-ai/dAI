@@ -1,5 +1,7 @@
 from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -13,19 +15,19 @@ from src.preprocessing.dataset_builder import build_dataset
 
 # večinoma sej je lokalno na računalniku, ne bomo pushali
 TRAIN_FILES = [
-    ("podatki/delo_podatki/delo_01.bin", 0),
-    ("podatki/delo_podatki/delo_02.bin", 0),
-    ("podatki/delo_podatki/delo_04.bin", 0),
-    ("podatki/delo_podatki/delo_05.bin", 0),
-    ("podatki/telefon_podatki/telefon_01.bin", 1),
-    ("podatki/telefon_podatki/telefon_02.bin", 1),
-    ("podatki/telefon_podatki/telefon_04.bin", 1),
-    ("podatki/telefon_podatki/telefon_05.bin", 1),
+    (str(ROOT_DIR / "podatki/delo_podatki/delo_01.bin"), 0),
+    (str(ROOT_DIR / "podatki/delo_podatki/delo_02.bin"), 0),
+    (str(ROOT_DIR / "podatki/delo_podatki/delo_04.bin"), 0),
+    (str(ROOT_DIR / "podatki/delo_podatki/delo_05.bin"), 0),
+    (str(ROOT_DIR / "podatki/telefon_podatki/telefon_01.bin"), 1),
+    (str(ROOT_DIR / "podatki/telefon_podatki/telefon_02.bin"), 1),
+    (str(ROOT_DIR / "podatki/telefon_podatki/telefon_04.bin"), 1),
+    (str(ROOT_DIR / "podatki/telefon_podatki/telefon_05.bin"), 1),
 ]
 
 VAL_FILES = [
-    ("podatki/delo_podatki/delo_03.bin", 0),
-    ("podatki/telefon_podatki/telefon_03.bin", 1),
+    (str(ROOT_DIR / "podatki/delo_podatki/delo_03.bin"), 0),
+    (str(ROOT_DIR / "podatki/telefon_podatki/telefon_03.bin"), 1),
 ]
 
 
@@ -39,8 +41,8 @@ EPOCHS = 25
 # 0.001 je običajna začetna vrednost za Adam opt.
 LEARNING_RATE = 0.001
 
-TRAIN_NPZ = "train_dataset.npz"
-VAL_NPZ = "val_dataset.npz"
+TRAIN_NPZ = str(ROOT_DIR / "train_dataset.npz")
+VAL_NPZ = str(ROOT_DIR / "val_dataset.npz")
 
 
 def train():
@@ -170,18 +172,18 @@ def train():
             f"val_acc={val_acc:.3f}"
         )
     # ustvari mapo models
-    Path("models").mkdir(exist_ok=True)
+    (ROOT_DIR / "models").mkdir(exist_ok=True)
 
-    with open("models/history.json", "w") as f:
+    with open(ROOT_DIR / "models" / "history.json", "w") as f:
         json.dump(history, f)
 
     # shrani naučene uteži modela -> state_dict - slovar vseh naučenih parametrov
     torch.save(
         model.state_dict(),
-        "models/imu_cnn.pt",
+        str(ROOT_DIR / "models" / "imu_cnn.pt"),
     )
 
-    print("Model shranjen v models/imu_cnn.pt")
+    print(f"Model shranjen v {ROOT_DIR / 'models' / 'imu_cnn.pt'}")
 
 
 if __name__ == "__main__":

@@ -304,21 +304,6 @@ class DataLogger:
 
 if __name__ == "__main__":
     logger = DataLogger()
-
-    packets = logger.parse_file("pogovor_04.bin")
-    mic_packets = [p for p in packets if 4 in p["chunks"]]
-
-    # vzorci na paket
-    samples_per_packet = [len(p["chunks"][4]) for p in mic_packets]
-    print(f"Vzorci na paket: {np.mean(samples_per_packet):.1f}")
-
-    # čas med paketi v ms
-    deltas = [
-        mic_packets[i + 1]["timestamp"] - mic_packets[i]["timestamp"]
-        for i in range(len(mic_packets) - 1)
-    ]
-    print(f"Razmik med paketi: {np.mean(deltas):.1f} ms")
-
-    # ocenjena Fvz
-    fvz_est = np.mean(samples_per_packet) / (np.mean(deltas) / 1000)
-    print(f"Ocenjena Fvz: {fvz_est:.1f} Hz")
+    logger.open()
+    logger.read_raw("seja.bin")
+    logger.close()

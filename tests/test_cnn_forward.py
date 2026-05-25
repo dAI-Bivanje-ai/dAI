@@ -1,5 +1,7 @@
 import torch
 
+from pathlib import Path
+from src.model.dataset_cnn import IMUDataset
 from src.model.cnn_model import CNNModel
 
 

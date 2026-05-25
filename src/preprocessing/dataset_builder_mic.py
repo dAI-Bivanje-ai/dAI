@@ -1,14 +1,13 @@
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from pathlib import Path
 import numpy as np
-from visualization.data_visualizer import pripravi_pakete, sestavi_podatke_mic
-from data_logger.data_logger import DataLogger
-from windower import window_signal_seconds
-from stft import compute_spectrograms_1d
-from alaw import alaw_decode_all
+from src.visualization.data_visualizer import pripravi_pakete, sestavi_podatke_mic
+from src.data_logger.data_logger import DataLogger
+from src.preprocessing.windower import window_signal_seconds
+from src.preprocessing.stft import compute_spectrograms_1d
+from src.preprocessing.alaw import alaw_decode_all
+from src.preprocessing.filters import bandpass_mic
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def load_session_mic(bin_file):
@@ -33,7 +32,10 @@ def load_session_mic(bin_file):
     # A-law dekodiranje iz int8
     mic_signal = alaw_decode_all(mic_raw)
 
-    return fvz_mic, mic_signal
+    # Filtriramo signal
+    filtered_signal = bandpass_mic(mic_signal, fvz_mic)
+
+    return fvz_mic, filtered_signal
 
 
 def build_dataset_mic(files):
@@ -109,12 +111,12 @@ def save_dataset(X, y, filename="dataset_mic.npz"):
 
 if __name__ == "__main__":
     files = [
-        ("podatki/mic_podatki/glasba_01.bin", 0),
-        ("podatki/mic_podatki/pogovor_02.bin", 1),
+        (str(ROOT_DIR / "podatki/mic_podatki/glasba_01.bin"), 0),
+        (str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"), 1),
     ]
 
     X, y = build_dataset_mic(files)
-    save_dataset(X, y, "dataset_mic.npz")
+    save_dataset(X, y, str(ROOT_DIR / "dataset_mic.npz"))
 
     print("Dataset ustvarjen")
     print("X:", X.shape)

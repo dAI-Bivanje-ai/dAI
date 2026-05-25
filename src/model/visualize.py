@@ -1,7 +1,10 @@
 import json
+from pathlib import Path
 import matplotlib.pyplot as plt
 
-with open("models/history.json") as f:
+ROOT_DIR = Path(__file__).resolve().parents[2]
+
+with open(ROOT_DIR / "models" / "history.json") as f:
     h = json.load(f)
 
 
@@ -23,5 +26,5 @@ ax2.set_ylim(0, 1)
 ax2.legend()
 
 plt.tight_layout()
-plt.savefig("models/training_plot.png", dpi=150)
+plt.savefig(str(ROOT_DIR / "models" / "training_plot.png"), dpi=150)
 plt.show()

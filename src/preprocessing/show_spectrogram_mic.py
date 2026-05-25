@@ -1,7 +1,10 @@
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
 from src.data_logger.data_logger import DataLogger
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
 from src.visualization.data_visualizer import pripravi_pakete, sestavi_podatke_mic
 from src.preprocessing.windower import window_signal_seconds
 from src.preprocessing.stft import compute_spectrograms_1d
@@ -16,7 +19,7 @@ TIME_STEP = (FFT_W * (1 - FFT_OVERLAP)) / MIC_FVZ  # časovni korak [s] = 16 ms
 
 if __name__ == "__main__":
     logger = DataLogger()
-    packets = logger.parse_file("pogovor_04.bin")
+    packets = logger.parse_file(str(ROOT_DIR / "pogovor_04.bin"))
     paketi = pripravi_pakete(packets)
 
     # sestavimo signal iz mic chunkov (chunk id 4)
