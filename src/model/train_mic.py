@@ -18,27 +18,27 @@ NUM_CLASSES = 2
 
 BATCH_SIZE = 16
 
-EPOCHS = 20
+EPOCHS = 50
 
 LEARNING_RATE = 0.001
 
 TRAIN_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_01.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_02.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_03.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_04.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_05.bin"), 0),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_06.bin"), 0),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_07.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_03.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_04.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_05.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_06.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_07.bin"), 1),
 ]
 
 VAL_FILES = [
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_06.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_07.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_06.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_07.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_03.bin"), 0),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_04.bin"), 0),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_03.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_04.bin"), 1),
 ]
 
 TRAIN_NPZ = str(ROOT_DIR / "train_dataset_mic.npz")
@@ -47,8 +47,8 @@ VAL_NPZ = str(ROOT_DIR / "val_dataset_mic.npz")
 
 def train():
 
-    X_mic_train, y_train = build_dataset_mic(TRAIN_FILES)
-    X_mic_val, y_val = build_dataset_mic(VAL_FILES)
+    X_mic_train, y_train, log_min, log_max = build_dataset_mic(TRAIN_FILES)
+    X_mic_val, y_val, _, _ = build_dataset_mic(VAL_FILES)
 
     np.savez(TRAIN_NPZ, X=X_mic_train, y=y_train)
     np.savez(VAL_NPZ, X=X_mic_val, y=y_val)
@@ -132,8 +132,13 @@ def train():
 
     with open(ROOT_DIR / "models" / "history_mic.json", "w") as f:
         json.dump(history, f)
+
     torch.save(
-        model.state_dict(),
+        {
+            "model": model.state_dict(),
+            "log_min": log_min,
+            "log_max": log_max,
+        },
         str(ROOT_DIR / "models" / "mic_cnn.pt"),
     )
 
