@@ -13,12 +13,12 @@ from src.model.dataset_cnn_mic import MicDataset
 from src.preprocessing.dataset_builder_mic import build_dataset_mic
 
 
-# glasba, pogovor
+# glasba, pogovorsssss
 NUM_CLASSES = 2
 
 BATCH_SIZE = 16
 
-EPOCHS = 50
+EPOCHS = 20
 
 LEARNING_RATE = 0.001
 
@@ -28,7 +28,6 @@ TRAIN_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_03.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_04.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_05.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_01.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_03.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_04.bin"), 1),
@@ -36,8 +35,8 @@ TRAIN_FILES = [
 ]
 
 VAL_FILES = [
-    (str(ROOT_DIR / "podatki/delo_podatki/delo_06.bin"), 0),
-    (str(ROOT_DIR / "podatki/delo_podatki/delo_07.bin"), 0),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_06.bin"), 0),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_07.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_06.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_07.bin"), 1),
 ]
@@ -51,5 +50,95 @@ def train():
     X_mic_train, y_train = build_dataset_mic(TRAIN_FILES)
     X_mic_val, y_val = build_dataset_mic(VAL_FILES)
 
-    np.savez(TRAIN_NPZ, X_mic=X_mic_train, y_train=y_train)
-    np.savez(VAL_NPZ, X_mic=X_mic_val, y=y_val)
+    np.savez(TRAIN_NPZ, X=X_mic_train, y=y_train)
+    np.savez(VAL_NPZ, X=X_mic_val, y=y_val)
+
+    train_dataset_mic = MicDataset(TRAIN_NPZ)
+    val_dataset_mic = MicDataset(VAL_NPZ)
+
+    train_loader_mic = DataLoader(
+        train_dataset_mic, batch_size=BATCH_SIZE, shuffle=True
+    )
+
+    val_loader_mic = DataLoader(val_dataset_mic, batch_size=BATCH_SIZE, shuffle=False)
+
+    model = CNNModel(num_classes=NUM_CLASSES)
+
+    loss_fn = nn.CrossEntropyLoss()
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+
+    history = {"train_loss": [], "train_acc": [], "val_acc": []}
+
+    for epoch in range(EPOCHS):
+
+        model.train()
+
+        total_loss = 0.0
+        correct = 0
+        total = 0
+
+        for sample, y in train_loader_mic:
+            optimizer.zero_grad()
+
+            outputs = model(sample)
+
+            loss = loss_fn(outputs, y)
+
+            loss.backward()
+
+            optimizer.step()
+
+            total_loss += loss.item()
+
+            predictions = outputs.argmax(dim=1)
+
+            correct += (predictions == y).sum().item()
+
+            total += y.size(0)
+
+        train_acc = correct / total
+        model.eval()
+
+        val_correct = 0
+        val_total = 0
+
+        with torch.no_grad():
+
+            for sample, y in val_loader_mic:
+
+                outputs = model(sample)
+
+                predictions = outputs.argmax(dim=1)
+
+                val_correct += (predictions == y).sum().item()
+
+                val_total += y.size(0)
+
+        val_acc = val_correct / val_total if val_total > 0 else 0
+
+        history["train_loss"].append(total_loss)
+        history["train_acc"].append(train_acc)
+        history["val_acc"].append(val_acc)
+
+        print(
+            f"Epoch {epoch + 1:02d}/{EPOCHS} | "
+            f"loss={total_loss:.4f} | "
+            f"train_acc={train_acc:.3f} | "
+            f"val_acc={val_acc:.3f}"
+        )
+
+    (ROOT_DIR / "models").mkdir(exist_ok=True)
+
+    with open(ROOT_DIR / "models" / "history_mic.json", "w") as f:
+        json.dump(history, f)
+    torch.save(
+        model.state_dict(),
+        str(ROOT_DIR / "models" / "mic_cnn.pt"),
+    )
+
+    print(f"Model shranjen v {ROOT_DIR / 'models' / 'mic_cnn.pt'}")
+
+
+if __name__ == "__main__":
+    train()
