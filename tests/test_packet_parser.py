@@ -30,12 +30,7 @@ def make_imu_chunk(chunk_id: int, samples: list[tuple[int, int, int]]) -> bytes:
     data = b"".join(struct.pack("<hhh", x, y, z) for x, y, z in samples)
     size = len(data)
 
-    return (
-        bytes([chunk_id])
-        + struct.pack("<H", size - 1)
-        + b"\x00"
-        + data
-    )
+    return bytes([chunk_id]) + struct.pack("<H", size - 1) + b"\x00" + data
 
 
 def make_mic_chunk(samples: list[int]) -> bytes:
@@ -45,12 +40,7 @@ def make_mic_chunk(samples: list[int]) -> bytes:
     data = bytes((sample & 0xFF for sample in samples))
     size = len(data)
 
-    return (
-        b"\x04"
-        + struct.pack("<H", size - 1)
-        + b"\x00"
-        + data
-    )
+    return b"\x04" + struct.pack("<H", size - 1) + b"\x00" + data
 
 
 def test_feed_keeps_incomplete_packet():

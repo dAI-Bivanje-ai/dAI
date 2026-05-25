@@ -65,7 +65,9 @@ def plot_grid(axes_row, S, title, use_all=False):
 
 def main():
     fvz_g, sig_g = load_session_mic(str(ROOT_DIR / "podatki/mic_podatki/glasba_01.bin"))
-    fvz_p, sig_p = load_session_mic(str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"))
+    fvz_p, sig_p = load_session_mic(
+        str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin")
+    )
 
     S_glasba = compute_stft(sig_g, fvz_g)
     S_pogovor = compute_stft(sig_p, fvz_p)

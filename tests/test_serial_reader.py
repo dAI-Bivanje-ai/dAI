@@ -26,7 +26,7 @@ def test_read_chunk_returns_bytes():
     - ali vrne pravilne realtime bajte
     - ali reader pravilno uporablja serial API
     """
-    #ustvari fake serial povezavo
+    # ustvari fake serial povezavo
     fake_serial = Mock()
     # simulirani realtime podatki iz STM32
     fake_serial.read.return_value = b"\xff\xff\x01abc"
@@ -43,6 +43,7 @@ def test_read_chunk_returns_bytes():
     assert data == b"\xff\xff\x01abc"
     # ali je bil serial.read() klican pravilno
     fake_serial.read.assert_called_once_with(6)
+
 
 def test_read_chunk_without_connection_raises():
     """
@@ -66,6 +67,7 @@ def test_read_chunk_without_connection_raises():
     except RuntimeError:
         # pricakovan rezultat
         assert True
+
 
 @patch("serial.tools.list_ports.comports")
 def test_find_stm32_port(mock_comports):

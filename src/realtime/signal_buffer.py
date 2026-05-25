@@ -9,7 +9,7 @@ ID_ACC = 2
 # Pretvorba iz int16 vrednosti v fizikalne enote.
 # To mora biti enako kot v offline vizualizaciji.
 GYRO_RESOLUTION = 8.75e-3  # deg/s
-ACC_RESOLUTION = 1e-3      # g
+ACC_RESOLUTION = 1e-3  # g
 
 
 class SignalBuffer:

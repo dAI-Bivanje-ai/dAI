@@ -9,7 +9,7 @@ import serial.tools.list_ports
 # lsusb
 STM32_VID = "0483"
 STM32_PID = "5740"
-# hitrost 
+# hitrost
 DEFAULT_BAUDRATE = 115200
 # koliko B prebere naenkrat
 READ_SIZE = 2048
@@ -26,6 +26,7 @@ class LiveSerialReader:
     - bere surove bajte
     - ob odklopu ne pade
     """
+
     def __init__(self, baudrate: int = DEFAULT_BAUDRATE) -> None:
         self.baudrate = baudrate
         self.port: str | None = None
@@ -40,7 +41,7 @@ class LiveSerialReader:
         - '/dev/ttyACM0'
         - '/dev/ttyACM1'
         - None če naprave ni
-        """        
+        """
         for port in serial.tools.list_ports.comports():
             hwid = port.hwid.upper()
 
@@ -56,7 +57,7 @@ class LiveSerialReader:
         Vrne:
         True  -> uspešna povezava
         False -> povezava ni uspela
-        """        
+        """
         # poisce port
         detected_port = self.find_stm32_port()
 
@@ -143,7 +144,7 @@ class LiveSerialReader:
     def read_chunk(self, size: int = READ_SIZE) -> bytes:
         """
         Prebere blok surovih bajtov.
-        
+
         Primer:
             ff ff 01 3a 22 ...
         """

@@ -37,6 +37,7 @@ class LivePacketParser:
     - DataLogger bere cel .bin file naenkrat
     - LivePacketParser dobiva bajte po kosih iz serial porta zato mora imeti svoj buffer
     """
+
     def __init__(self, max_buffer_size: int = 200000) -> None:
         # hranjenje bajtov iz serial porta ker en read() nii nujno cel paket
         self.buffer = bytearray()
@@ -59,7 +60,7 @@ class LivePacketParser:
         Izhod:
             seznam vseh kompletnih paketov, ki jih je parser uspel sestaviti
 
-        
+
         En serial read() lahko vsebuje:
             - 0 celih paketov
             - 1 cel paket
@@ -86,7 +87,7 @@ class LivePacketParser:
             if start == -1:
                 self.buffer.clear()
                 return packets
-            
+
             # Če je pred sync markerjem garbage, ga odstranimo.
             if start > 0:
                 del self.buffer[:start]
@@ -156,14 +157,14 @@ class LivePacketParser:
         # če se CRC ne ujema je paket poskodovan
         if received_crc != computed_crc:
             return None
-        
+
         if packet_size != len(payload):
             logging.debug(
                 "Packet size mismatch: header=%s actual=%s",
                 packet_size,
                 len(payload),
             )
-        
+
         chunks = self.parse_chunks(payload[6:-2])
 
         if chunks is None:
@@ -203,10 +204,13 @@ class LivePacketParser:
             chunk_id = chunks_data[pos]
 
             try:
-                chunk_size = struct.unpack(
-                    "<H",
-                    chunks_data[pos + 1:pos + 3],
-                )[0] + 1
+                chunk_size = (
+                    struct.unpack(
+                        "<H",
+                        chunks_data[pos + 1 : pos + 3],
+                    )[0]
+                    + 1
+                )
 
             except struct.error:
                 return None
@@ -234,7 +238,7 @@ class LivePacketParser:
                     try:
                         x, y, z = struct.unpack(
                             "<hhh",
-                            chunk_data[i:i + SAMPLE_SIZE],
+                            chunk_data[i : i + SAMPLE_SIZE],
                         )
                     except struct.error:
                         return None

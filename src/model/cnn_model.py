@@ -19,20 +19,17 @@ class SensorBranch(nn.Module):
             # filter velikosti 3x3
             # padding doda rob okoli slike
             nn.Conv2d(3, 16, kernel_size=3, padding=1),
-
             # odstrani negativne vrednosti in doda nelinearnost
             nn.ReLU(),
-
             # zmanjša dimenzije spektograma za prb. 2x
             nn.MaxPool2d(2),
-
             # druga konvolucija iz 16 feature map naredi 32 kompleksnejših FM.
             nn.Conv2d(16, 32, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2),
             # ne glede velikost vhoda mreža na koncu vrne (32, 4, 4)
             nn.AdaptiveAvgPool2d((4, 4)),
-            # pretvori feature map z naučenimi značilkami senzorja v 1D vektor 
+            # pretvori feature map z naučenimi značilkami senzorja v 1D vektor
             nn.Flatten(),
         )
 
@@ -80,7 +77,7 @@ class CNNModel(nn.Module):
         # iz značilk napove aktivnost
         self.classifier = nn.Sequential(
             # Fully connected layer
-            # Input: 1024 značilk 
+            # Input: 1024 značilk
             # Output: 64 značilk
             nn.Linear(32 * 4 * 4 * 2, 64),
             nn.ReLU(),
