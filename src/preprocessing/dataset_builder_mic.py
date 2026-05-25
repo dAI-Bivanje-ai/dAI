@@ -92,9 +92,12 @@ def build_dataset_mic(files):
 
     # globalna log10 normalizacija + skaliranje na [0, 1]
     X = np.log10(X + 1e-10)
-    X = (X - X.min()) / (X.max() - X.min())
+    log_min = float(X.min())
+    log_max = float(X.max())
+    X = (X - log_min) / (log_max - log_min)
 
-    return X, y
+    # to rabimo globalno
+    return X, y, log_min, log_max
 
 
 def save_dataset(X, y, filename="dataset_mic.npz"):
@@ -115,7 +118,7 @@ if __name__ == "__main__":
         (str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"), 1),
     ]
 
-    X, y = build_dataset_mic(files)
+    X, y, _, _ = build_dataset_mic(files)
     save_dataset(X, y, str(ROOT_DIR / "dataset_mic.npz"))
 
     print("Dataset ustvarjen")
