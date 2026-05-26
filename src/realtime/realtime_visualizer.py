@@ -12,7 +12,6 @@ class RealtimeSpectrogramVisualizer:
     """
 
     def __init__(self) -> None:
-        # Interaktivni način omogoča sprotno posodabljanje istega okna.
         plt.ion()
 
         self.fig, self.ax = plt.subplots(2, 1, figsize=(10, 7))
@@ -20,16 +19,14 @@ class RealtimeSpectrogramVisualizer:
         self.acc_img = None
         self.gyro_img = None
 
+        self.update_counter = 0
+
         self.setup_plot()
 
         plt.tight_layout()
         plt.show(block=False)
 
     def setup_plot(self) -> None:
-        """
-        Nastavi naslove in oznake osi za oba grafa.
-        """
-
         self.ax[0].set_title("Pospeškometer - spektrogram")
         self.ax[0].set_xlabel("Časovni segment")
         self.ax[0].set_ylabel("Frekvenčni bin")
@@ -42,18 +39,14 @@ class RealtimeSpectrogramVisualizer:
         self,
         acc_spec: np.ndarray,
         gyro_spec: np.ndarray,
+        time_sec: float | None = None,
     ) -> None:
-        """
-        Posodobi prikaz z novim ACC in GYRO spektrogramom.
-        """
+        self.update_counter += 1
 
-        # Spektrogram ima tri osi X, Y in Z.
-        # Za enostaven prikaz jih združimo v eno magnitudo.
         acc_data = self.calculate_magnitude(acc_spec)
         gyro_data = self.calculate_magnitude(gyro_spec)
 
         if self.acc_img is None:
-            # Prvič ustvarimo sliki v matplotlib oknu
             self.acc_img = self.ax[0].imshow(
                 acc_data,
                 aspect="auto",
@@ -74,27 +67,24 @@ class RealtimeSpectrogramVisualizer:
             self.fig.colorbar(self.gyro_img, ax=self.ax[1])
 
         else:
-            # zamenjamo podatke v obstoječi sliki.
             self.acc_img.set_data(acc_data)
             self.gyro_img.set_data(gyro_data)
+
+        if time_sec is not None:
+            self.fig.suptitle(
+                f"Realtime spektrogram | čas: {time_sec:.2f} s | update: {self.update_counter}"
+            )
+        else:
+            self.fig.suptitle(
+                f"Realtime spektrogram | update: {self.update_counter}"
+            )
 
         self.fig.canvas.draw_idle()
         self.fig.canvas.flush_events()
 
-        # matplotlib okno refresh.
         plt.pause(0.001)
 
     def calculate_magnitude(self, spectrogram: np.ndarray) -> np.ndarray:
-        """
-        Iz treh osi spektrograma naredi eno 2D sliko.
-
-        Vhod:
-            spectrogram -> (freq_bins, segment_length, 3)
-
-        Izhod:
-            magnitude -> (freq_bins, segment_length)
-        """
-
         x = spectrogram[:, :, 0]
         y = spectrogram[:, :, 1]
         z = spectrogram[:, :, 2]
@@ -102,8 +92,4 @@ class RealtimeSpectrogramVisualizer:
         return np.sqrt(x**2 + y**2 + z**2)
 
     def is_open(self) -> bool:
-        """
-        Preveri, ali je okno za prikaz še odprto.
-        """
-
         return plt.fignum_exists(self.fig.number)
