@@ -28,10 +28,13 @@ TRAIN_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_05.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_06.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_07.bin"), 0),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_08.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_05.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_06.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_07.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_09.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_10.bin"), 1),
 ]
 
 VAL_FILES = [
