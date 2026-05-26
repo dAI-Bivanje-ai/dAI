@@ -20,7 +20,7 @@ BATCH_SIZE = 16
 
 EPOCHS = 50
 
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 
 TRAIN_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_01.bin"), 0),
