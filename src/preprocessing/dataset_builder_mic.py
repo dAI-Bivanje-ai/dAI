@@ -46,7 +46,7 @@ def build_dataset_mic(files):
       1. Naloži in dekodira signal
       2. Razreže na 32ms STFT okna s 50% prekrivanjem -> (M, 256)
       3. Izračuna STFT frame-e -> (M, 129)
-      4. Razreže STFT na 2-sekundne segmente po 62 frame-ov -> (N, 129, 62)
+      4. Razreže STFT na 5-sekundne segmente po 311 frame-ov -> (N, 129, 62)
       5. Doda labelo za vsak segment
 
     Na koncu: log10 normalizacija + skaliranje na [0, 1] globalno.
@@ -60,7 +60,9 @@ def build_dataset_mic(files):
             y: numpy array (N,) — labele (0=glasba, 1=pogovor)
     """
     result = []
-    SEG_FRAMES = 62  # floor((2s * 8000 - 256) / 128) + 1 = število STFT frame-ov v 2s
+    SEG_FRAMES = (
+        311  # floor((5 * 8000 - 256) / 128) + 1 = 311, toliko framov rabimo za 5s
+    )
 
     for bin_file, label in files:
 
