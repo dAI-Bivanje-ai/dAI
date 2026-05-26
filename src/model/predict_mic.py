@@ -13,7 +13,7 @@ MODEL_PATH = ROOT_DIR / "models" / "mic_cnn.pt"
 
 
 RMS_THRESHOLD = 0.01
-SEG_FRAMES = 62
+SEG_FRAMES = 311
 
 CLASS_NAMES = {
     0: "GLASBA",
@@ -25,7 +25,7 @@ def predict_mic(bin_file):
 
     fvz_mic, sig_mic = load_session_mic(bin_file)
 
-    samples_per_seg = int(2.0 * fvz_mic)  # ker je en segment 2 sekundi dolg
+    samples_per_seg = int(5.0 * fvz_mic)
     n_segments = len(sig_mic) // samples_per_seg
 
     checkpoint = torch.load(str(MODEL_PATH), map_location="cpu")
@@ -44,8 +44,8 @@ def predict_mic(bin_file):
 
         rms = np.sqrt(np.mean(segment_raw**2))
 
-        minutes = (i * 2) // 60
-        seconds = (i * 2) % 60
+        minutes = (i * 5) // 60
+        seconds = (i * 5) % 60
         time_str = f"{minutes:02d}:{seconds:02d}"
 
         if rms < RMS_THRESHOLD:
