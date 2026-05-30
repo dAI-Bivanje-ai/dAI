@@ -1,12 +1,16 @@
 import numpy as np
+import torch
 
+from src.preprocessing.alaw import alaw_decode_all
 from src.preprocessing.dataset_builder import SEGMENT_LENGTH
+from src.preprocessing.filters import bandpass_mic
 from src.preprocessing.stft import (
     compute_spectrograms,
+    compute_spectrograms_1d,
     group_spectrograms,
     normalize_spectrogram,
 )
-from src.preprocessing.windower import window_signal
+from src.preprocessing.windower import window_signal, window_signal_seconds
 
 
 class RealtimePreprocessor:
@@ -120,3 +124,39 @@ class RealtimePreprocessor:
             raise ValueError("Signal mora imeti obliko (N, 3).")
 
         return signal
+
+
+class MicRealtimePreprocessor:
+
+    def __init__(self, log_min: float, log_max: float) -> None:
+        self.log_min = log_min
+        self.log_max = log_max
+        self.FVZ = 8000.0
+        self.SEG_FRAMES = 311
+        self.RMS_THRESHOLD = 0.01
+
+    def process(self, samples: np.ndarray) -> tuple[torch.Tensor | None, float]:
+
+        raw = np.asarray(samples, dtype=np.int8)
+        pcm = alaw_decode_all(raw)
+        filtered = bandpass_mic(pcm, self.FVZ)
+
+        rms = float(np.sqrt(np.mean(filtered**2)))
+        if rms < self.RMS_THRESHOLD:
+            return None, rms
+
+        windows = window_signal_seconds(
+            filtered, self.FVZ, T_window=0.032, prekrivanje=0.5
+        )
+
+        spectrograms = compute_spectrograms_1d(windows)
+        if spectrograms.shape[0] < self.SEG_FRAMES:
+            return None, rms
+
+        spec = spectrograms[-self.SEG_FRAMES :].T
+        spec = np.log10(spec + 1e-10)
+        spec = (spec - self.log_min) / (self.log_max - self.log_min)
+        spec = np.clip(spec, 0.0, 1.0)
+
+        tensor = torch.tensor(spec, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        return tensor, rms
