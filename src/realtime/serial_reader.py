@@ -119,8 +119,8 @@ class LiveSerialReader:
         self.connection.write(b"CONFIG mag 0\r\n")
         time.sleep(0.1)
 
-        # Mikrofon za zdaj izklopljen, ker najprej stabiliziramo IMU stream.
-        self.connection.write(b"CONFIG mic 0\r\n")
+        # Vklopimo mikrofon
+        self.connection.write(b"CONFIG mic 1\r\n")
         time.sleep(0.1)
 
         # počistimo stare podatke v bufferju
