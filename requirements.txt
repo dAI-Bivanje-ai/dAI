@@ -5,3 +5,4 @@ pyserial
 numpy
 matplotlib
 torch
+scipy

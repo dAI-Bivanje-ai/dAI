@@ -25,7 +25,7 @@ class IMUDataset(Dataset):
 
         # (N, freq_bins, segment_lenght, 3 channels)
         x_acc = data["X_acc"]
-        x_gyro = data ["X_gyro"]
+        x_gyro = data["X_gyro"]
         y = data["y"]
 
         # pretvorba tipov za PyTorch
