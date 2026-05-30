@@ -1,7 +1,5 @@
 import logging
-import struct
 
-import numpy as np
 
 from src.data_logger.data_logger import DataLogger
 
@@ -11,8 +9,6 @@ SYNC = b"\xff\xff"
 ID_GYRO = 1
 ID_ACC = 2
 ID_MIC = 4
-
-SAMPLE_SIZE = 6  # int16 x, y, z
 
 
 class LivePacketParser:
@@ -49,6 +45,20 @@ class LivePacketParser:
         self.total_packets = 0
         self.valid_packets = 0
         self.invalid_packets = 0
+
+    def strip_debug_lines(self) -> None:
+        i = 0
+        cleaned = bytearray()
+        while i < len(self.buffer):
+            if self.buffer[i] == 0x50 and self.buffer[i : i + 6] == b"Packet":
+                end = self.buffer.find(b"\r\n", i)
+
+                if end != -1:
+                    i = end + 2
+                    continue
+            cleaned.append(self.buffer[i])
+            i += 1
+        self.buffer = cleaned
 
     def feed(self, data: bytes) -> list[dict]:
         """
