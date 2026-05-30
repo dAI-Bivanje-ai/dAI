@@ -113,3 +113,100 @@ def run_mic_inference(
         pred = output.argmax(dim=1).item()
 
     return MIC_CLASSES[pred], rms
+
+
+def print_status(imu_label: str | None, mic_label: str | None, rms: float) -> None:
+    imu_str = imu_label or "?"
+    if mic_label is None:
+        mic_str = "TIŠINA"
+        notif_str = ""
+    else:
+        mic_str = mic_label
+        notif = NOTIFICATIONS.get((imu_str, mic_label), "")
+        notif_str = f"  →  {notif}" if notif else ""
+
+    print(f"IMU={imu_str}  MIC={mic_str}  (rms={rms:.4f}){notif_str}")
+
+
+def run() -> None:
+    logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
+
+    imu_model = load_imu_model()
+    logging.info("IMU model naložen: %s", IMU_MODEL_PATH)
+
+    mic_model, log_min, log_max = load_mic_model()
+    logging.info("Mic model naložen: %s", MIC_MODEL_PATH)
+
+    imu_preprocessor = RealtimePreprocessor()
+    mic_preprocessor = MicRealtimePreprocessor(log_min=log_min, log_max=log_max)
+
+    parser = LivePacketParser()
+    reader = LiveSerialReader()
+
+    acc_buf: deque = deque(maxlen=ACC_MAXLEN)
+    gyro_buf: deque = deque(maxlen=GYRO_MAXLEN)
+    mic_buf: deque = deque(maxlen=MIC_MAXLEN)
+
+    packet_count = 0
+    last_imu_label: str | None = None
+    last_mic_label: str | None = None
+    last_rms = 0.0
+
+    try:
+        for chunk in reader.read_stream():
+            packets = parser.feed(chunk)
+
+            for packet in packets:
+                chunks = packet.get("chunks", {})
+
+                if ID_ACC in chunks:
+                    for x, y, z in chunks[ID_ACC]:
+                        acc_buf.append(
+                            (
+                                x * ACC_RESOLUTION,
+                                y * ACC_RESOLUTION,
+                                z * ACC_RESOLUTION,
+                            )
+                        )
+
+                if ID_GYRO in chunks:
+                    for x, y, z in chunks[ID_GYRO]:
+                        gyro_buf.append(
+                            (
+                                x * GYRO_RESOLUTION,
+                                y * GYRO_RESOLUTION,
+                                z * GYRO_RESOLUTION,
+                            )
+                        )
+
+                if ID_MIC in chunks:
+                    mic_buf.extend(chunks[ID_MIC])
+
+                packet_count += 1
+
+                if packet_count % IMU_PREDICT_EVERY_N == 0:
+                    label = run_imu_inference(
+                        imu_model, imu_preprocessor, acc_buf, gyro_buf
+                    )
+                    if label:
+                        last_imu_label = label
+                        print_status(last_imu_label, last_mic_label, last_rms)
+
+                if packet_count % MIC_PREDICT_EVERY_N == 0:
+                    label, rms = run_mic_inference(mic_model, mic_preprocessor, mic_buf)
+                    last_rms = rms
+                    last_mic_label = label
+                    print_status(last_imu_label, last_mic_label, last_rms)
+
+    except KeyboardInterrupt:
+        print("\nUstavljanje...")
+    finally:
+        stats = parser.stats()
+        print(
+            f"\nPaketi: {stats['valid_packets']} veljavnih / {stats['total_packets']} skupaj"
+        )
+        reader.stop()
+
+
+if __name__ == "__main__":
+    run()
