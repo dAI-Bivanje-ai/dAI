@@ -88,3 +88,34 @@ class GUI:
             bg=BG,
             pady=14,
         ).pack()
+
+        # rabimo dve kartici z napovedmi
+
+        cards = tk.Frame(self.root, bg=BG)
+        cards.pack(fill=tk.X, padx=24)
+
+        self.imu_frame = self.make_card(cards, "GIBANJE (IMU)")
+        self.imu_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 8))
+
+        self.mic_frame = self.make_card(cards, "ZVOK (MIC)")
+        self.mic_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0))
+
+        self.imu_label_var = tk.StringVar(value=" ")
+        self.mic_label_var = tk.StringVar(value=" ")
+
+    def make_card(self, parent, title):
+        frame = tk.Frame(parent, bg=CARD_BG, pady=10, padx=10)
+        tk.Label(
+            frame, text=title, font=("Menlo", 9, "bold"), fg=IDLE_COLOR, bg=CARD_BG
+        ).pack()
+        return frame
+
+
+def run():
+    root = tk.Tk()
+    GUI(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    run()
