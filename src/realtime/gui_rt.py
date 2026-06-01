@@ -160,6 +160,14 @@ class GUI:
         ).pack()
         return frame
 
+    def set_imu(self, text, color):
+        self.imu_label_var.set(text)
+        self.imu_lbl.configure(fg=color)
+
+    def set_mic(self, text, color):
+        self.mic_label_var.set(text)
+        self.mic_lbl.configure(fg=color)
+
 
 def run():
     root = tk.Tk()
