@@ -103,6 +103,56 @@ class GUI:
         self.imu_label_var = tk.StringVar(value=" ")
         self.mic_label_var = tk.StringVar(value=" ")
 
+        self.imu_lbl = tk.Label(
+            self.imu_frame,
+            textvariable=self.imu_label_var,
+            font=("Menlo", 32, "bold"),
+            fg=IDLE_COLOR,
+            bg=CARD_BG,
+        )
+        self.imu_lbl.pack(pady=(4, 16))
+
+        self.mic_lbl = tk.Label(
+            self.mic_frame,
+            textvariable=self.mic_label_var,
+            font=("Menlo", 32, "bold"),
+            fg=IDLE_COLOR,
+            bg=CARD_BG,
+        )
+        self.mic_lbl.pack(pady=(4, 16))
+
+        notif_frame = tk.Frame(self.root, bg=CARD_BG, pady=12)
+        notif_frame.pack(fill=tk.X, padx=24, pady=20)
+
+        tk.Label(
+            notif_frame,
+            text="STATUS",
+            font=("Menlo", 9, "bold"),
+            fg=IDLE_COLOR,
+            bg=CARD_BG,
+        ).pack()
+
+        self.notif_var = tk.StringVar(value="Čakam na podatke ...")
+        tk.Label(
+            notif_frame,
+            textvariable=self.notif_var,
+            font=("Menlo", 13),
+            fg="white",
+            bg=CARD_BG,
+            wraplength=400,
+            justify=tk.CENTER,
+        ).pack(pady=(4, 0))
+
+        self.conn_var = tk.StringVar(value="Ni povezave")
+        tk.Label(
+            self.root,
+            textvariable=self.conn_var,
+            font=("Menlo", 9),
+            fg=IDLE_COLOR,
+            bg=BG,
+            pady=8,
+        ).pack(side=tk.BOTTOM)
+
     def make_card(self, parent, title):
         frame = tk.Frame(parent, bg=CARD_BG, pady=10, padx=10)
         tk.Label(
