@@ -259,6 +259,16 @@ class GUI:
     def apply(self, state):
         pass
 
+    def predict_mic(self, model, prep, mic_buf):
+        if not mic_buf:
+            return None
+        tensor, rms = prep.process(np.array(mic_buf, dtype=np.int8))
+        if tensor is None:
+            return None
+        with torch.no_grad():
+            out = model(tensor)[0].numpy()
+        return MIC_CLASSES[int(out.argmax())]
+
 
 def run():
     root = tk.Tk()
