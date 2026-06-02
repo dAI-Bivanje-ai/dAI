@@ -38,7 +38,7 @@ class RealtimePreprocessor:
         self,
         acc_window: np.ndarray,
         gyro_window: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray] | None:
+    ) -> tuple[torch.Tensor, torch.Tensor] | None:
         """
         Pripravi spektrograma za zadnje ACC in GYRO okno.
 
@@ -62,8 +62,14 @@ class RealtimePreprocessor:
         acc_spec = normalize_spectrogram(acc_spec)
         gyro_spec = normalize_spectrogram(gyro_spec)
 
-        return acc_spec, gyro_spec
+        # Model pričakuje PyTorch tensor oblike:
+        # (batch, channels, freq, time)
+        # permute - prestavimo osi
+        acc_tensor = torch.from_numpy(acc_spec).float().permute(2, 0, 1).unsqueeze(0)
+        gyro_tensor = torch.from_numpy(gyro_spec).float().permute(2, 0, 1).unsqueeze(0)
 
+        return acc_tensor, gyro_tensor
+    
     def build_sensor_spectrogram(
         self,
         signal: np.ndarray,
