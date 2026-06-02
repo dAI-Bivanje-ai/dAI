@@ -77,6 +77,13 @@ class GUI:
         self.root.configure(bg=BG)
         self.root.resizable(False, False)
 
+        self.queue = queue.Queue = queue.Queue()
+        self.last_imu = None
+        self.last_mic = None
+
+        self.build()
+        self.schedule_refresh()
+
     def build(self):
         self.root.geometry("480x400")
 
@@ -160,6 +167,18 @@ class GUI:
         ).pack()
         return frame
 
+    def schedule_refresh(self):
+        self.root.after(self.REFRESH_RATE_MS, self.refresh)
+
+    def refresh(self):
+        while True:
+            try:
+                state = self.queue.get_nowait()
+            except queue.Empty:
+                break
+            self.apply(state)
+        self.schedule_refresh
+
     def set_imu(self, text, color):
         self.imu_label_var.set(text)
         self.imu_lbl.configure(fg=color)
@@ -167,6 +186,15 @@ class GUI:
     def set_mic(self, text, color):
         self.mic_label_var.set(text)
         self.mic_lbl.configure(fg=color)
+
+    def start_thread(self):
+        threading.Thread(target=self.prediction_loop, daemon=True).start()
+
+    def prediction_loop(self):
+        pass
+
+    def apply(self):
+        pass
 
 
 def run():
