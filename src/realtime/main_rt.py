@@ -11,12 +11,14 @@ from src.model.cnn_model_mic import CNNModel as MicModel
 from src.realtime.packet_parser import LivePacketParser, ID_ACC, ID_GYRO, ID_MIC
 from src.realtime.preproc_rt import MicRealtimePreprocessor, RealtimePreprocessor
 from src.realtime.serial_reader import LiveSerialReader
+from src.realtime.signal_buffer import SignalBuffer
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
 MIC_MODEL_PATH = ROOT_DIR / "models" / "mic_cnn.pt"
+
 
 @dataclass(frozen=True)
 class RealtimeConfig:
@@ -56,6 +58,10 @@ class RealtimeConfig:
     # Tako realtime loop ni po nepotrebnem preobremenjen.
     imu_predict_every_n_packets: int = 12
     mic_predict_every_n_packets: int = 100
+
+    # Buffer se šteje kot pripravljen, ko ima vsaj 95 % pričakovanih vzorcev.
+    # To omogoča manjša odstopanja dejanske frekvence, npr. 24 Hz namesto 25 Hz.
+    buffer_ready_ratio: float = 0.95
 
 
 CONFIG = RealtimeConfig()
@@ -103,14 +109,11 @@ def load_mic_model() -> tuple[MicModel, float, float]:
 def run_imu_inference(
     model: IMUModel,
     preprocessor: RealtimePreprocessor,
-    acc_buf: deque,
-    gyro_buf: deque,
+    acc_window: np.ndarray | None,
+    gyro_window: np.ndarray | None,
 ) -> str | None:
-    if not acc_buf or not gyro_buf:
+    if not acc_window or not gyro_window:
         return None
-
-    acc_window = np.array(acc_buf, dtype=np.float32)
-    gyro_window = np.array(gyro_buf, dtype=np.float32)
 
     result = preprocessor.process(acc_window, gyro_window)
     if result is None:
@@ -183,8 +186,15 @@ def run() -> None:
     parser = LivePacketParser()
     reader = LiveSerialReader()
 
-    acc_buf: deque = deque(maxlen=ACC_MAXLEN)
-    gyro_buf: deque = deque(maxlen=GYRO_MAXLEN)
+    signal_buffer = SignalBuffer(
+        window_seconds=CONFIG.imu_window_seconds,
+        acc_sample_rate=CONFIG.acc_sample_rate,
+        gyro_sample_rate=CONFIG.gyro_sample_rate,
+        acc_resolution=CONFIG.acc_resolution,
+        gyro_resolution=CONFIG.gyro_resolution,
+        ready_ratio=CONFIG.buffer_ready_ratio,
+    )
+
     mic_buf: deque = deque(maxlen=MIC_MAXLEN)
 
     packet_count = 0
@@ -199,35 +209,26 @@ def run() -> None:
             for packet in packets:
                 chunks = packet.get("chunks", {})
 
-                if ID_ACC in chunks:
-                    for x, y, z in chunks[ID_ACC]:
-                        acc_buf.append(
-                            (
-                                x * CONFIG.acc_resolution,
-                                y * CONFIG.acc_resolution,
-                                z * CONFIG.acc_resolution,
-                            )
-                        )
+                # ACC in GYRO vzorce doda SignalBuffer.
+                # Ta sam poskrbi za pravilno resolucijo in ločeni dolžini bufferjev.
+                signal_buffer.add_packet(packet)
 
-                if ID_GYRO in chunks:
-                    for x, y, z in chunks[ID_GYRO]:
-                        gyro_buf.append(
-                            (
-                                x * CONFIG.gyro_resolution,
-                                y * CONFIG.gyro_resolution,
-                                z * CONFIG.gyro_resolution,
-                            )
-                        )
-
+                # Mikrofon ostane posebej, ker ima drugačno obliko podatkov kot IMU.
                 if ID_MIC in chunks:
                     mic_buf.extend(chunks[ID_MIC])
 
                 packet_count += 1
 
                 if packet_count % CONFIG.imu_predict_every_n_packets == 0:
+                    acc_window, gyro_window = signal_buffer.get_window()
+
                     label = run_imu_inference(
-                        imu_model, imu_preprocessor, acc_buf, gyro_buf
+                        imu_model,
+                        imu_preprocessor,
+                        acc_window,
+                        gyro_window,
                     )
+
                     if label:
                         last_imu_label = label
                         print_status(last_imu_label, last_mic_label, last_rms)

@@ -6,6 +6,7 @@ import numpy as np
 ID_GYRO = 1
 ID_ACC = 2
 
+
 class SignalBuffer:
     """
     Buffer za realtime IMU podatke.
@@ -18,14 +19,14 @@ class SignalBuffer:
     """
 
     def __init__(
-            self,
-            window_seconds: float,
-            acc_sample_rate: float,
-            gyro_sample_rate: float,
-            acc_resolution: float,
-            gyro_resolution: float,
-            ready_ratio: float = 0.95,
-        ) -> None:
+        self,
+        window_seconds: float,
+        acc_sample_rate: float,
+        gyro_sample_rate: float,
+        acc_resolution: float,
+        gyro_resolution: float,
+        ready_ratio: float = 0.95,
+    ) -> None:
         """
         Args:
             window_seconds:
@@ -116,7 +117,10 @@ class SignalBuffer:
         acc_required = int(self.acc_max_samples * self.ready_ratio)
         gyro_required = int(self.gyro_max_samples * self.ready_ratio)
 
-        return (len(self.acc_buffer) >= acc_required and len(self.gyro_buffer) >= gyro_required)
+        return (
+            len(self.acc_buffer) >= acc_required
+            and len(self.gyro_buffer) >= gyro_required
+        )
 
     def get_window(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         """
