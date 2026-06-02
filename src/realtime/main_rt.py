@@ -23,53 +23,54 @@ MIC_MODEL_PATH = ROOT_DIR / "models" / "mic_cnn.pt"
 @dataclass(frozen=True)
 class RealtimeConfig:
     """
-    Centralna konfiguracija za realtime sistem.
+    Enotna konfiguracija za realtime sistem.
 
-    - vse pomembne številke so na enem mestu,
+    - vse pomembne številke na enem mestu,
     - lažje spreminjamo okna in frekvence,
     - v kodi se izognemo magic numberjem.
     """
 
-    # Vzorčevalne frekvence senzorjev
+    # Pričakovana Fvz senzorjev
     acc_sample_rate: float = 25.0
     gyro_sample_rate: float = 105.0
     mic_sample_rate: float = 8000.0
 
-    # Dolžina zgodovine, ki jo hranimo za IMU model.
+    # Dolžina časovnega okna za izračun n ACC in GYRO vzorcev v SignalBuffer
     imu_window_seconds: float = 8.0
 
-    # Dolžina mikrofonskega segmenta mora biti enaka kot pri treningu.
-    # Trenutni mic dataset uporablja 5 sekund, zato realtime ne sme uporabljati 6 ali 8 sekund.
+    # Dolžina zvočnega segmenta (mora biti enaka kot v treningu!) 
     mic_segment_seconds: float = 5.0
 
     # Parametri STFT za mikrofon.
-    # 0.032 s pri 8000 Hz pomeni 256 vzorcev.
+    # 0.032s pri 8000 Hz = 256 vzorcev.
     mic_stft_window_seconds: float = 0.032
+    # 50% prekrivanje oken
     mic_stft_overlap: float = 0.5
 
-    # Če je RMS manjši od tega praga, obravnavamo zvok kot tišino.
+    # Prag za tišino, če je rms < P ne kličemo modela za mic
     mic_rms_threshold: float = 0.01
 
-    # Pretvorba surovih IMU vrednosti v fizikalne enote.
+    # Rsoluciji int16 v fizikalne enote
     acc_resolution: float = 1e-3
     gyro_resolution: float = 8.75e-3
 
-    # Ne delamo inference na vsak paket, ampak na vsak N-ti paket.
-    # Tako realtime loop ni po nepotrebnem preobremenjen.
-    imu_predict_every_n_packets: int = 12
-    mic_predict_every_n_packets: int = 100
 
     # Buffer se šteje kot pripravljen, ko ima vsaj 95 % pričakovanih vzorcev.
-    # To omogoča manjša odstopanja dejanske frekvence, npr. 24 Hz namesto 25 Hz.
+    # Omogoča manjša odstopanja dejanske frekvence, npr. 24 Hz namesto 25 Hz.
     buffer_ready_ratio: float = 0.95
+
+    # Optimizacija - Inferenca na vsak N-ti paket ker je preprocessing in napoved računsko draga
+    imu_predict_every_n_packets: int = 12
+    mic_predict_every_n_packets: int = 100
 
 
 CONFIG = RealtimeConfig()
 
+# Pretvorba številčnega izhoda v ime razreda
 IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
 MIC_CLASSES = {0: "GLASBA", 1: "POGOVOR"}
 
-
+# Kombinacije IMU + MIC razreda sestavljajo uporabniško opozorilo.
 NOTIFICATIONS = {
     ("DELO", "GLASBA"): "Delaš, ampak glasba je preglasna",
     ("DELO", "POGOVOR"): "Delaš, ampak nekdo govori v ozadju",
@@ -77,19 +78,18 @@ NOTIFICATIONS = {
     ("TELEFON", "POGOVOR"): "Ne delaš ...",
 }
 
-
-# Iz configa izračunamo velikosti bufferjev.
-# Buffer pove, koliko zadnjih vzorcev hranimo za posamezen senzor.
-ACC_MAXLEN = int(CONFIG.imu_window_seconds * CONFIG.acc_sample_rate)
-GYRO_MAXLEN = int(CONFIG.imu_window_seconds * CONFIG.gyro_sample_rate)
-
-# Mikrofon hrani samo toliko vzorcev, kolikor jih model dejansko potrebuje.
-# Če je mic_segment_seconds = 5.0 in mic_sample_rate = 8000,
-# je to 40000 vzorcev.
+# Mikrofon hrani zadnjih 5 sekund zvoka.
+# 5 s * 8000 Hz = 40000 vzorcev.
 MIC_MAXLEN = int(CONFIG.mic_segment_seconds * CONFIG.mic_sample_rate)
 
 
 def load_imu_model() -> IMUModel:
+    """
+    Naloži naučen IMU model iz datoteke.
+
+    Model uporablja ACC in GYRO spektrograme za klasifikacijo aktivnosti.
+    eval() izklopi training obnašanje, npr. dropout.
+    """
     model = IMUModel(num_classes=2)
     model.load_state_dict(torch.load(str(IMU_MODEL_PATH), map_location="cpu"))
     model.eval()
@@ -97,6 +97,13 @@ def load_imu_model() -> IMUModel:
 
 
 def load_mic_model() -> tuple[MicModel, float, float]:
+    """
+    Naloži za mikrofon naučen model.
+
+    Poleg uteži modela naložimo še log_min in log_max.
+    Ti vrednosti sta potrebni, da realtime spektrogram normaliziramo enako kot pri treningu.
+    """
+
     checkpoint = torch.load(str(MIC_MODEL_PATH), map_location="cpu")
     model = MicModel(num_classes=2)
     model.load_state_dict(checkpoint["model"])
@@ -112,16 +119,23 @@ def run_imu_inference(
     acc_window: np.ndarray | None,
     gyro_window: np.ndarray | None,
 ) -> str | None:
-    if not acc_window or not gyro_window:
-        return None
+    """
+    Izvede klasifikacijo aktivnosti iz ACC in GYRO okna.
 
+    Vhod:
+    - acc_window: zadnje ACC okno oblike (N, 3)
+    - gyro_window: zadnje GYRO okno oblike (N, 3)
+
+    Če buffer še nima dovolj podatkov, dobimo None in inference preskočimo.
+    """
+    if acc_window is None or gyro_window is None:
+        return None
+    
+    # RealtimePreprocessor vrne pripravljene vhode za model - tensorje
     result = preprocessor.process(acc_window, gyro_window)
     if result is None:
         return None
-
-    acc_spec, gyro_spec = result
-    acc_t = torch.from_numpy(acc_spec).float().permute(2, 0, 1).unsqueeze(0)
-    gyro_t = torch.from_numpy(gyro_spec).float().permute(2, 0, 1).unsqueeze(0)
+    acc_t, gyro_t = result
 
     with torch.no_grad():
         output = model(acc_t, gyro_t)
@@ -135,29 +149,52 @@ def run_mic_inference(
     preprocessor: MicRealtimePreprocessor,
     mic_buf: deque,
 ) -> tuple[str | None, float]:
+    """
+    Izvede klasifikacijo zvoka iz mikrofonskega bufferja.
+
+    Mikrofon ima ločen buffer, ker njegovi podatki niso trojice x,y,z,
+    ampak 1D audio vzorci.
+    """
+    
+    # Če ni vzorcev inference preskočimo
     if not mic_buf:
         return None, 0.0
-
+    
+    # Deque pretvorimo v NumPy array.
+    # Mikrofon je A-law encoded, zato je dtype int8.
     samples = np.array(mic_buf, dtype=np.int8)
     tensor, rms = preprocessor.process(samples)
 
+    # Če je signal tišina ali še ni dovolj dolg, preprocessor vrne None.
     if tensor is None:
         return None, rms
-
+    
+    # Model uporabimo samo za napoved, zato gradienti niso potrebni.
     with torch.no_grad():
         output = model(tensor)
         pred = output.argmax(dim=1).item()
 
+    # Številčni razred pretvorimo v tekstovno oznako.
     return MIC_CLASSES[pred], rms
 
 
 def print_status(imu_label: str | None, mic_label: str | None, rms: float) -> None:
+    """
+    Izpiše trenutno stanje sistema.
+
+    Združi zadnjo IMU napoved in zadnjo MIC napoved.
+    Če obstaja opozorilo za to kombinacijo, ga doda na konec izpisa.
+    """
+    # Če IMU še ni dal napovedi, izpišemo vprašaj.
     imu_str = imu_label or "?"
+
+    # Če mikrofon nima razreda, to obravnavamo kot tišino.
     if mic_label is None:
         mic_str = "TIŠINA"
         notif_str = ""
     else:
         mic_str = mic_label
+        # Poiščemo obvestilo za kombinacijo IMU + MIC.
         notif = NOTIFICATIONS.get((imu_str, mic_label), "")
         notif_str = f"  →  {notif}" if notif else ""
 
@@ -165,15 +202,32 @@ def print_status(imu_label: str | None, mic_label: str | None, rms: float) -> No
 
 
 def run() -> None:
+    """
+    Glavna realtime zanka.
+
+    Tukaj:
+    - naložimo modele,
+    - pripravimo preprocessors,
+    - odpremo realtime reader,
+    - parsamo pakete,
+    - polnimo bufferje,
+    - periodično izvajamo inference.
+    """
+
+    # Nastavimo osnovni logging, da vidimo informacije o nalaganju in povezavi.
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
+    # Naložimo IMU model.
     imu_model = load_imu_model()
     logging.info("IMU model naložen: %s", IMU_MODEL_PATH)
 
+    # Naložimo mikrofonski model in normalizacijske vrednosti.
     mic_model, log_min, log_max = load_mic_model()
     logging.info("Mic model naložen: %s", MIC_MODEL_PATH)
 
+    # Preprocessor za ACC/GYRO pripravi spektrograme za IMU model.
     imu_preprocessor = RealtimePreprocessor()
+    # Preprocessor za mikrofon, ki uporablja iste nastavitve kot training.
     mic_preprocessor = MicRealtimePreprocessor(
         log_min=log_min,
         log_max=log_max,
@@ -183,9 +237,13 @@ def run() -> None:
         stft_overlap=CONFIG.mic_stft_overlap,
         rms_threshold=CONFIG.mic_rms_threshold,
     )
+    
+    # Parser iz surovih bajtov naredi strukturirane pakete.
     parser = LivePacketParser()
+    # Reader skrbi za serial povezavo s STM32 in vrača bajte
     reader = LiveSerialReader()
-
+    # SignalBuffer skrbi za ACC in GYRO.
+    # Sam pobere pravilne chunke, pretvori vrednosti v fizikalne enote in hrani ločeni okni za ACC in GYRO
     signal_buffer = SignalBuffer(
         window_seconds=CONFIG.imu_window_seconds,
         acc_sample_rate=CONFIG.acc_sample_rate,
@@ -194,31 +252,37 @@ def run() -> None:
         gyro_resolution=CONFIG.gyro_resolution,
         ready_ratio=CONFIG.buffer_ready_ratio,
     )
-
+    # Mikrofon ostane v ločenem bufferju ker je 1D.
     mic_buf: deque = deque(maxlen=MIC_MAXLEN)
-
+    # Štejemo pakete, da inference ne teče na vsak paket, ampak periodično.
+    # Štejemo za inferenco na vsak n-ti paket
     packet_count = 0
+    # Hranimo zadnje oznake za izpis
     last_imu_label: str | None = None
     last_mic_label: str | None = None
     last_rms = 0.0
 
     try:
+        # prehod po blokih bajtov iz serial porta
         for chunk in reader.read_stream():
+            # Parser lahko iz enega bloka dobi 0, 1 ali več kompletnih paketov.
             packets = parser.feed(chunk)
 
             for packet in packets:
+                # chunks je slovar senzorskih podatkov znotraj paketa.
+                # Ključi so ID_ACC, ID_GYRO, ID_MIC.
                 chunks = packet.get("chunks", {})
 
-                # ACC in GYRO vzorce doda SignalBuffer.
-                # Ta sam poskrbi za pravilno resolucijo in ločeni dolžini bufferjev.
+                # ACC in GYRO vzorce damo v SignalBuffer.
                 signal_buffer.add_packet(packet)
 
-                # Mikrofon ostane posebej, ker ima drugačno obliko podatkov kot IMU.
+                # Mikrofon ostane posebej, ker 1D
                 if ID_MIC in chunks:
                     mic_buf.extend(chunks[ID_MIC])
 
                 packet_count += 1
-
+                
+                # Inference izvajamo na vsak N-ti paket
                 if packet_count % CONFIG.imu_predict_every_n_packets == 0:
                     acc_window, gyro_window = signal_buffer.get_window()
 
@@ -228,11 +292,11 @@ def run() -> None:
                         acc_window,
                         gyro_window,
                     )
-
+                    # Če model vrne oznako, jo shranimo kot zadnje znano IMU stanje.
                     if label:
                         last_imu_label = label
                         print_status(last_imu_label, last_mic_label, last_rms)
-
+                # MIC inference izvajamo redkeje, ker je mikrofonski segment daljši.
                 if packet_count % CONFIG.mic_predict_every_n_packets == 0:
                     label, rms = run_mic_inference(mic_model, mic_preprocessor, mic_buf)
                     last_rms = rms
@@ -240,8 +304,10 @@ def run() -> None:
                     print_status(last_imu_label, last_mic_label, last_rms)
 
     except KeyboardInterrupt:
+        # CTRL + C 
         print("\nUstavljanje...")
     finally:
+        # izpis statisktike parserja 
         stats = parser.stats()
         print(
             f"\nPaketi: {stats['valid_packets']} veljavnih / {stats['total_packets']} skupaj"
