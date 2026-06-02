@@ -6,12 +6,6 @@ import numpy as np
 ID_GYRO = 1
 ID_ACC = 2
 
-# Pretvorba iz int16 vrednosti v fizikalne enote.
-# To mora biti enako kot v offline vizualizaciji.
-GYRO_RESOLUTION = 8.75e-3  # deg/s
-ACC_RESOLUTION = 1e-3  # g
-
-
 class SignalBuffer:
     """
     Buffer za realtime IMU podatke.
@@ -23,29 +17,44 @@ class SignalBuffer:
     - vrne okno oblike (N, 3), ko je buffer poln
     """
 
-    def __init__(self, window_seconds: float, sample_rate: float) -> None:
+    def __init__(
+            self,
+            window_seconds: float,
+            acc_sample_rate: float,
+            gyro_sample_rate: float,
+            acc_resolution: float,
+            gyro_resolution: float,
+            ready_ratio: float = 0.95,
+        ) -> None:
         """
         Args:
             window_seconds:
                 Dolžina okna v sekundah.
-            sample_rate:
-                Vzorčevalna frekvenca senzorja v Hz.
+            acc_sample_rate:
+                Pričakovana vzorčevalna frekvenca pospeškometra v Hz.
+            gyro_sample_rate:
+                Pričakovana vzorčevalna frekvenca giroskopa v Hz.
+            acc_resolution:
+                Pretvorba surovih ACC vrednosti v g.
+            gyro_resolution:
+                Pretvorba surovih GYRO vrednosti v deg/s.
+            ready_ratio:
+                Delež pričakovanih vzorcev, pri katerem buffer že štejemo kot pripravljen.
         """
         self.window_seconds = window_seconds
-        self.sample_rate = sample_rate
+        self.acc_sample_rate = acc_sample_rate
+        self.gyro_sample_rate = gyro_sample_rate
+        self.acc_resolution = acc_resolution
+        self.gyro_resolution = gyro_resolution
+        self.ready_ratio = ready_ratio
 
-        # Koliko vzorcev potrebujemo za eno okno.
-        # 2 s * 100 Hz = 200 vzorcev.
-        self.max_samples = int(window_seconds * sample_rate)
+        self.acc_max_samples = int(window_seconds * acc_sample_rate)
+        self.gyro_max_samples = int(window_seconds * gyro_sample_rate)
 
         # deque z maxlen avtomatsko briše najstarejše vzorce,
         # ko dodamo nove in je buffer že poln.
-        self.acc_buffer: deque[tuple[float, float, float]] = deque(
-            maxlen=self.max_samples
-        )
-        self.gyro_buffer: deque[tuple[float, float, float]] = deque(
-            maxlen=self.max_samples
-        )
+        self.acc_buffer = deque(maxlen=self.acc_max_samples)
+        self.gyro_buffer = deque(maxlen=self.gyro_max_samples)
 
     def add_packet(self, packet: dict) -> None:
         """
@@ -78,9 +87,9 @@ class SignalBuffer:
         for x, y, z in samples:
             self.acc_buffer.append(
                 (
-                    x * ACC_RESOLUTION,
-                    y * ACC_RESOLUTION,
-                    z * ACC_RESOLUTION,
+                    x * self.acc_resolution,
+                    y * self.acc_resolution,
+                    z * self.acc_resolution,
                 )
             )
 
@@ -97,20 +106,17 @@ class SignalBuffer:
         for x, y, z in samples:
             self.gyro_buffer.append(
                 (
-                    x * GYRO_RESOLUTION,
-                    y * GYRO_RESOLUTION,
-                    z * GYRO_RESOLUTION,
+                    x * self.gyro_resolution,
+                    y * self.gyro_resolution,
+                    z * self.gyro_resolution,
                 )
             )
 
     def is_ready(self) -> bool:
-        """
-        Vrne True, ko imata ACC in GYRO dovolj vzorcev za eno polno okno.
-        """
-        return (
-            len(self.acc_buffer) == self.max_samples
-            and len(self.gyro_buffer) == self.max_samples
-        )
+        acc_required = int(self.acc_max_samples * self.ready_ratio)
+        gyro_required = int(self.gyro_max_samples * self.ready_ratio)
+
+        return (len(self.acc_buffer) >= acc_required and len(self.gyro_buffer) >= gyro_required)
 
     def get_window(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         """
@@ -153,5 +159,6 @@ class SignalBuffer:
         return {
             "acc_samples": len(self.acc_buffer),
             "gyro_samples": len(self.gyro_buffer),
-            "required_samples": self.max_samples,
+            "required_acc_samples": self.acc_max_samples,
+            "required_gyro_samples": self.gyro_max_samples,
         }

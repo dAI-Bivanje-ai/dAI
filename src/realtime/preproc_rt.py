@@ -165,7 +165,7 @@ class MicRealtimePreprocessor:
         self.rms_threshold = rms_threshold
 
         # Iz sekund izračunamo, koliko STFT frame-ov mora imeti en segment.
-        self.segment_frames = self._calculate_segment_frames()
+        self.segment_frames = self.calculate_segment_frames()
 
     def calculate_segment_frames(self) -> int:
         """
@@ -200,6 +200,7 @@ class MicRealtimePreprocessor:
         raw = np.asarray(samples, dtype=np.int8)
         pcm = alaw_decode_all(raw)
         filtered = bandpass_mic(pcm, self.sample_rate)
+
         # Če je sig prenizek, predpostavimo, da gre za tišino in ne kličemo modela.
         rms = float(np.sqrt(np.mean(filtered**2)))
         if rms < self.rms_threshold:

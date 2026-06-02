@@ -1,5 +1,4 @@
 import logging
-import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,7 +28,7 @@ class RealtimeConfig:
     - v kodi se izognemo magic numberjem.
     """
 
-    # Vzorčevalne frekvence senzorjev.
+    # Vzorčevalne frekvence senzorjev
     acc_sample_rate: float = 25.0
     gyro_sample_rate: float = 105.0
     mic_sample_rate: float = 8000.0
@@ -55,16 +54,11 @@ class RealtimeConfig:
 
     # Ne delamo inference na vsak paket, ampak na vsak N-ti paket.
     # Tako realtime loop ni po nepotrebnem preobremenjen.
-    imu_predict_every_packets: int = 12
-    mic_predict_every_packets: int = 100
-
-    # Stabilizacija: potrdi razred, ko je dovolj zaporednih napovedi skladnih.
-    stable_prediction_window: int = 10
-    stable_prediction_ratio: float = 0.90
+    imu_predict_every_n_packets: int = 12
+    mic_predict_every_n_packets: int = 100
 
 
 CONFIG = RealtimeConfig()
-
 
 IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
 MIC_CLASSES = {0: "GLASBA", 1: "POGOVOR"}
@@ -185,7 +179,7 @@ def run() -> None:
         stft_window_seconds=CONFIG.mic_stft_window_seconds,
         stft_overlap=CONFIG.mic_stft_overlap,
         rms_threshold=CONFIG.mic_rms_threshold,
-)
+    )
     parser = LivePacketParser()
     reader = LiveSerialReader()
 
@@ -209,9 +203,9 @@ def run() -> None:
                     for x, y, z in chunks[ID_ACC]:
                         acc_buf.append(
                             (
-                                x * CONFIG.ACC_RESOLUTION,
-                                y * CONFIG.ACC_RESOLUTION,
-                                z * CONFIG.ACC_RESOLUTION,
+                                x * CONFIG.acc_resolution,
+                                y * CONFIG.acc_resolution,
+                                z * CONFIG.acc_resolution,
                             )
                         )
 
@@ -219,9 +213,9 @@ def run() -> None:
                     for x, y, z in chunks[ID_GYRO]:
                         gyro_buf.append(
                             (
-                                x * CONFIG.GYRO_RESOLUTION,
-                                y * CONFIG.GYRO_RESOLUTION,
-                                z * CONFIG.GYRO_RESOLUTION,
+                                x * CONFIG.gyro_resolution,
+                                y * CONFIG.gyro_resolution,
+                                z * CONFIG.gyro_resolution,
                             )
                         )
 
@@ -230,7 +224,7 @@ def run() -> None:
 
                 packet_count += 1
 
-                if packet_count % CONFIG.IMU_PREDICT_EVERY_N == 0:
+                if packet_count % CONFIG.imu_predict_every_n_packets == 0:
                     label = run_imu_inference(
                         imu_model, imu_preprocessor, acc_buf, gyro_buf
                     )
@@ -238,7 +232,7 @@ def run() -> None:
                         last_imu_label = label
                         print_status(last_imu_label, last_mic_label, last_rms)
 
-                if packet_count % CONFIG.MIC_PREDICT_EVERY_N == 0:
+                if packet_count % CONFIG.mic_predict_every_n_packets == 0:
                     label, rms = run_mic_inference(mic_model, mic_preprocessor, mic_buf)
                     last_rms = rms
                     last_mic_label = label
