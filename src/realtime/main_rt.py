@@ -177,8 +177,15 @@ def run() -> None:
     logging.info("Mic model naložen: %s", MIC_MODEL_PATH)
 
     imu_preprocessor = RealtimePreprocessor()
-    mic_preprocessor = MicRealtimePreprocessor(log_min=log_min, log_max=log_max)
-
+    mic_preprocessor = MicRealtimePreprocessor(
+        log_min=log_min,
+        log_max=log_max,
+        sample_rate=CONFIG.mic_sample_rate,
+        segment_seconds=CONFIG.mic_segment_seconds,
+        stft_window_seconds=CONFIG.mic_stft_window_seconds,
+        stft_overlap=CONFIG.mic_stft_overlap,
+        rms_threshold=CONFIG.mic_rms_threshold,
+)
     parser = LivePacketParser()
     reader = LiveSerialReader()
 
