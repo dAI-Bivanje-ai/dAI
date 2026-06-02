@@ -40,6 +40,7 @@ MIC_MAXLEN = int(8.0 * MIC_SAMPLE_RATE)
 ACC_RESOLUTION = 1e-3
 GYRO_RESOLUTION = 8.75e-3
 
+# tu mamo malo magic numbers, prvo gui, pole uskladimo
 IMU_PREDICT_EVERY_N = 12
 MIC_PREDICT_EVERY_N = 100
 CLASS_COLORS = {
@@ -222,6 +223,35 @@ class GUI:
             for chunk in reader.read_stream():
                 if reader.port:
                     self.queue.put({"type": "connected", "port": reader.port})
+
+                for packet in parser.feed(chunk):
+                    chunks = packet.get("chunks", {})
+                    if ID_ACC in chunks:
+                        n_acc += len(chunks[ID_ACC])
+
+                        for x, y, z in chunks[ID_ACC]:
+                            acc_buf.append(
+                                (
+                                    x * ACC_RESOLUTION,
+                                    y * ACC_RESOLUTION,
+                                    z * ACC_RESOLUTION,
+                                )
+                            )
+                    if ID_GYRO in chunks:
+                        for x, y, z in chunks[ID_GYRO]:
+                            gyro_buf.append(
+                                (
+                                    x * GYRO_RESOLUTION,
+                                    y * GYRO_RESOLUTION,
+                                    z * GYRO_RESOLUTION,
+                                )
+                            )
+
+                    if ID_MIC in chunks:
+                        n_mic += len(chunks[ID_MIC])
+                        mic_buf.extend(chunks[ID_MIC])
+
+                    n += 1
 
         except Exception as e:
             pass
