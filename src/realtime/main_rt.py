@@ -1,6 +1,6 @@
 import logging
-import time
 from collections import deque
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -18,6 +18,47 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
 MIC_MODEL_PATH = ROOT_DIR / "models" / "mic_cnn.pt"
 
+@dataclass(frozen=True)
+class RealtimeConfig:
+    """
+    Centralna konfiguracija za realtime sistem.
+
+    - vse pomembne številke so na enem mestu,
+    - lažje spreminjamo okna in frekvence,
+    - v kodi se izognemo magic numberjem.
+    """
+
+    # Vzorčevalne frekvence senzorjev
+    acc_sample_rate: float = 25.0
+    gyro_sample_rate: float = 105.0
+    mic_sample_rate: float = 8000.0
+
+    # Dolžina zgodovine, ki jo hranimo za IMU model.
+    imu_window_seconds: float = 8.0
+
+    # Dolžina mikrofonskega segmenta mora biti enaka kot pri treningu.
+    # Trenutni mic dataset uporablja 5 sekund, zato realtime ne sme uporabljati 6 ali 8 sekund.
+    mic_segment_seconds: float = 5.0
+
+    # Parametri STFT za mikrofon.
+    # 0.032 s pri 8000 Hz pomeni 256 vzorcev.
+    mic_stft_window_seconds: float = 0.032
+    mic_stft_overlap: float = 0.5
+
+    # Če je RMS manjši od tega praga, obravnavamo zvok kot tišino.
+    mic_rms_threshold: float = 0.01
+
+    # Pretvorba surovih IMU vrednosti v fizikalne enote.
+    acc_resolution: float = 1e-3
+    gyro_resolution: float = 8.75e-3
+
+    # Ne delamo inference na vsak paket, ampak na vsak N-ti paket.
+    # Tako realtime loop ni po nepotrebnem preobremenjen.
+    imu_predict_every_n_packets: int = 12
+    mic_predict_every_n_packets: int = 100
+
+
+CONFIG = RealtimeConfig()
 
 IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
 MIC_CLASSES = {0: "GLASBA", 1: "POGOVOR"}
@@ -31,23 +72,15 @@ NOTIFICATIONS = {
 }
 
 
-ACC_SAMPLE_RATE = 25.0
-GYRO_SAMPLE_RATE = 105.0
-MIC_SAMPLE_RATE = 8000.0
+# Iz configa izračunamo velikosti bufferjev.
+# Buffer pove, koliko zadnjih vzorcev hranimo za posamezen senzor.
+ACC_MAXLEN = int(CONFIG.imu_window_seconds * CONFIG.acc_sample_rate)
+GYRO_MAXLEN = int(CONFIG.imu_window_seconds * CONFIG.gyro_sample_rate)
 
-
-# tile parametri se bodo spreminjali se, zaenkrat dela okej
-WINDOW_SECONDS = 8.0
-ACC_MAXLEN = int(WINDOW_SECONDS * ACC_SAMPLE_RATE)  # 200
-GYRO_MAXLEN = int(WINDOW_SECONDS * GYRO_SAMPLE_RATE)  # 840
-
-MIC_MAXLEN = int(8.0 * MIC_SAMPLE_RATE)  # 64000
-
-ACC_RESOLUTION = 1e-3
-GYRO_RESOLUTION = 8.75e-3
-
-IMU_PREDICT_EVERY_N = 12
-MIC_PREDICT_EVERY_N = 100
+# Mikrofon hrani samo toliko vzorcev, kolikor jih model dejansko potrebuje.
+# Če je mic_segment_seconds = 5.0 in mic_sample_rate = 8000,
+# je to 40000 vzorcev.
+MIC_MAXLEN = int(CONFIG.mic_segment_seconds * CONFIG.mic_sample_rate)
 
 
 def load_imu_model() -> IMUModel:
@@ -138,8 +171,15 @@ def run() -> None:
     logging.info("Mic model naložen: %s", MIC_MODEL_PATH)
 
     imu_preprocessor = RealtimePreprocessor()
-    mic_preprocessor = MicRealtimePreprocessor(log_min=log_min, log_max=log_max)
-
+    mic_preprocessor = MicRealtimePreprocessor(
+        log_min=log_min,
+        log_max=log_max,
+        sample_rate=CONFIG.mic_sample_rate,
+        segment_seconds=CONFIG.mic_segment_seconds,
+        stft_window_seconds=CONFIG.mic_stft_window_seconds,
+        stft_overlap=CONFIG.mic_stft_overlap,
+        rms_threshold=CONFIG.mic_rms_threshold,
+    )
     parser = LivePacketParser()
     reader = LiveSerialReader()
 
@@ -163,9 +203,9 @@ def run() -> None:
                     for x, y, z in chunks[ID_ACC]:
                         acc_buf.append(
                             (
-                                x * ACC_RESOLUTION,
-                                y * ACC_RESOLUTION,
-                                z * ACC_RESOLUTION,
+                                x * CONFIG.acc_resolution,
+                                y * CONFIG.acc_resolution,
+                                z * CONFIG.acc_resolution,
                             )
                         )
 
@@ -173,9 +213,9 @@ def run() -> None:
                     for x, y, z in chunks[ID_GYRO]:
                         gyro_buf.append(
                             (
-                                x * GYRO_RESOLUTION,
-                                y * GYRO_RESOLUTION,
-                                z * GYRO_RESOLUTION,
+                                x * CONFIG.gyro_resolution,
+                                y * CONFIG.gyro_resolution,
+                                z * CONFIG.gyro_resolution,
                             )
                         )
 
@@ -184,7 +224,7 @@ def run() -> None:
 
                 packet_count += 1
 
-                if packet_count % IMU_PREDICT_EVERY_N == 0:
+                if packet_count % CONFIG.imu_predict_every_n_packets == 0:
                     label = run_imu_inference(
                         imu_model, imu_preprocessor, acc_buf, gyro_buf
                     )
@@ -192,7 +232,7 @@ def run() -> None:
                         last_imu_label = label
                         print_status(last_imu_label, last_mic_label, last_rms)
 
-                if packet_count % MIC_PREDICT_EVERY_N == 0:
+                if packet_count % CONFIG.mic_predict_every_n_packets == 0:
                     label, rms = run_mic_inference(mic_model, mic_preprocessor, mic_buf)
                     last_rms = rms
                     last_mic_label = label
