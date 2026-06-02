@@ -1,6 +1,7 @@
 import logging
 import time
 from collections import deque
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +18,52 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
 MIC_MODEL_PATH = ROOT_DIR / "models" / "mic_cnn.pt"
+
+@dataclass(frozen=True)
+class RealtimeConfig:
+    """
+    Centralna konfiguracija za realtime sistem.
+    
+    - vse pomembne številke so na enem mestu,
+    - lažje spreminjamo okna in frekvence,
+    - v kodi se izognemo magic numberjem.
+    """
+
+    # Vzorčevalne frekvence senzorjev.
+    acc_sample_rate: float = 25.0
+    gyro_sample_rate: float = 105.0
+    mic_sample_rate: float = 8000.0
+
+    # Dolžina zgodovine, ki jo hranimo za IMU model.
+    imu_window_seconds: float = 8.0
+
+    # Dolžina mikrofonskega segmenta mora biti enaka kot pri treningu.
+    # Trenutni mic dataset uporablja 5 sekund, zato realtime ne sme uporabljati 6 ali 8 sekund.
+    mic_segment_seconds: float = 5.0
+
+    # Parametri STFT za mikrofon.
+    # 0.032 s pri 8000 Hz pomeni 256 vzorcev.
+    mic_stft_window_seconds: float = 0.032
+    mic_stft_overlap: float = 0.5
+
+    # Če je RMS manjši od tega praga, obravnavamo zvok kot tišino.
+    mic_rms_threshold: float = 0.01
+
+    # Pretvorba surovih IMU vrednosti v fizikalne enote.
+    acc_resolution: float = 1e-3
+    gyro_resolution: float = 8.75e-3
+
+    # Ne delamo inference na vsak paket, ampak na vsak N-ti paket.
+    # Tako realtime loop ni po nepotrebnem preobremenjen.
+    imu_predict_every_packets: int = 12
+    mic_predict_every_packets: int = 100
+
+    # Stabilizacija: potrdi razred, ko je dovolj zaporednih napovedi skladnih.
+    stable_prediction_window: int = 10
+    stable_prediction_ratio: float = 0.90
+
+
+CONFIG = RealtimeConfig()
 
 
 IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
