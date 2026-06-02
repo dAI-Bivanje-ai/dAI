@@ -32,6 +32,7 @@ GYRO_SAMPLE_RATE = 105.0
 MIC_SAMPLE_RATE = 8000.0
 
 WINDOW_SECONDS = 8.0
+# kako velik je buffer lahko
 ACC_MAXLEN = int(WINDOW_SECONDS * ACC_SAMPLE_RATE)
 GYRO_MAXLEN = int(WINDOW_SECONDS * GYRO_SAMPLE_RATE)
 MIC_MAXLEN = int(8.0 * MIC_SAMPLE_RATE)
@@ -191,9 +192,41 @@ class GUI:
         threading.Thread(target=self.prediction_loop, daemon=True).start()
 
     def prediction_loop(self):
-        pass
 
-    def apply(self):
+        # nalozimo oba modela
+        try:
+            imu_model = load_imu_model()
+            mic_model, log_min, log_max = load_mic_model()
+        except Exception as e:
+            self.notif_var.set(f"Napaka pri nalaganju modelov: {e}")
+            return
+
+        imu_prep = RealtimePreprocessor()
+        mic_prer = MicRealtimePreprocessor(log_min=log_min, log_max=log_max)
+        parser = LivePacketParser()
+        reader = LiveSerialReader()
+
+        acc_buf: deque = deque(maxlen=ACC_MAXLEN)
+        gyro_buf: deque = deque(maxlen=GYRO_MAXLEN)
+        mic_buf: deque = deque(maxlen=MIC_MAXLEN)
+        n = 0
+
+        import time
+
+        t0 = time.time()
+        n_acc = 0
+        n_gyro = 0
+        n_mic = 0
+
+        try:
+            for chunk in reader.read_stream():
+                if reader.port:
+                    self.queue.put({"type": "connected", "port": reader.port})
+
+        except Exception as e:
+            pass
+
+    def apply(self, state):
         pass
 
 
