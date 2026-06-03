@@ -1,5 +1,5 @@
 import logging
-from collections import deque
+from collections import Counter, deque
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -63,8 +63,67 @@ class RealtimeConfig:
     imu_predict_every_n_packets: int = 12
     mic_predict_every_n_packets: int = 100
 
+    # Stabilizacija napovedi.
+    # Sistem potrdi stanje šele, ko je dovolj zadnjih napovedi enakih.
+    stable_prediction_window: int = 10
+    stable_prediction_ratio: float = 0.90
+
 
 CONFIG = RealtimeConfig()
+
+class PredictionStabilizer:
+    """
+    Stabilizira realtime napovedi modela.
+
+    Hrani zadnjih N napovedi in potrdi razred šele,
+    ko dovolj velik delež napovedi kaže na isti razred.
+    """
+
+    def __init__(self, window_size: int, min_ratio: float) -> None:
+        # Sliding window zadnjih N predictionov.
+        self.window: deque[str] = deque(maxlen=window_size)
+
+        # Minimalni delež enakih predictionov 90 %.
+        self.min_ratio = min_ratio
+
+        # Zadnji že potrjeni razred.
+        # To prepreči, da bi isti stabilen razred izpisovali znova in znova.
+        self.last_confirmed: str | None = None
+
+    def update(self, label: str | None) -> str | None:
+        """
+        Doda novo napoved in vrne stabilen razred, če je dovolj zanesljiv.
+
+        Vrne:
+        - None, če še ni dovolj napovedi ali stanje ni stabilno,
+        - ime razreda, če je potrjen nov stabilen razred.
+        """
+
+        if label is None:
+            return None
+
+        self.window.append(label)
+
+        # Dokler okno ni polno, še ne odločamo.
+        if len(self.window) < self.window.maxlen:
+            return None
+
+        # Preštejemo, kateri razred je najpogostejši v zadnjih N napovedih.
+        label_counts = Counter(self.window)
+        most_common_label, count = label_counts.most_common(1)[0]
+
+        ratio = count / len(self.window)
+
+        # Če najpogostejši razred ne doseže praga, stanje še ni stabilno.
+        if ratio < self.min_ratio:
+            return None
+
+        # Če je to isti razred kot zadnjič, ga ne izpišemo ponovno.
+        if most_common_label == self.last_confirmed:
+            return None
+
+        self.last_confirmed = most_common_label
+        return most_common_label
 
 # Pretvorba številčnega izhoda v ime razreda
 IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
