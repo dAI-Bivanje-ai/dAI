@@ -35,7 +35,7 @@ WINDOW_SECONDS = 8.0
 MIC_SEGMENT_SECONDS = 5.0
 MIC_STFT_WINDOW_SECONDS = 0.032
 MIC_STFT_OVERLAP = 0.5
-MIC_RMS_THRESHOLD = 0.01
+MIC_RMS_THRESHOLD = 0.0015
 ACC_RESOLUTION = 1e-3
 GYRO_RESOLUTION = 8.75e-3
 MIC_MAXLEN = int(MIC_SEGMENT_SECONDS * MIC_SAMPLE_RATE)
@@ -227,10 +227,88 @@ class GUI:
         else:
             self.notif_var.set(f"{self.last_imu} + {self.last_mic}")
 
+    def start_thread(self):
+        threading.Thread(target=self.prediction_loop, daemon=True).start()
+
+    def prediction_loop(self):
+        try:
+            imu_model = load_imu_model()
+            mic_model, log_min, log_max = load_mic_model()
+        except Exception as e:
+            self.queue.put({"type": "error", "msg": str(e)})
+            return
+
+        imu_prep = RealtimePreprocessor()
+        mic_prep = MicRealtimePreprocessor(
+            log_min=log_min,
+            log_max=log_max,
+            sample_rate=MIC_SAMPLE_RATE,
+            segment_seconds=MIC_SEGMENT_SECONDS,
+            stft_window_seconds=MIC_STFT_WINDOW_SECONDS,
+            stft_overlap=MIC_STFT_OVERLAP,
+            rms_threshold=MIC_RMS_THRESHOLD,
+        )
+
+        parser = LivePacketParser()
+        reader = LiveSerialReader()
+
+        signal_buffer = SignalBuffer(
+            window_seconds=WINDOW_SECONDS,
+            acc_sample_rate=ACC_SAMPLE_RATE,
+            gyro_sample_rate=GYRO_SAMPLE_RATE,
+            acc_resolution=ACC_RESOLUTION,
+            gyro_resolution=GYRO_RESOLUTION,
+        )
+        mic_buf: deque = deque(maxlen=MIC_MAXLEN)
+        n = 0
+
+        try:
+            for chunk in reader.read_stream():
+                if reader.port:
+                    self.queue.put({"type": "connected", "port": reader.port})
+
+                for packet in parser.feed(chunk):
+                    chunks = packet.get("chunks", {})
+
+                    signal_buffer.add_packet(packet)
+
+                    if ID_MIC in chunks:
+                        mic_buf.extend(chunks[ID_MIC])
+
+                    n += 1
+
+                    if n % IMU_PREDICT_EVERY_N == 0:
+                        acc_window, gyro_window = signal_buffer.get_window()
+                        if acc_window is not None and gyro_window is not None:
+                            result = imu_prep.process(acc_window, gyro_window)
+                            if result is not None:
+                                acc_t, gyro_t = result
+                                with torch.no_grad():
+                                    pred = imu_model(acc_t, gyro_t).argmax(dim=1).item()
+                                self.queue.put(
+                                    {"type": "imu", "label": IMU_CLASSES[pred]}
+                                )
+
+                    if n % MIC_PREDICT_EVERY_N == 0 and mic_buf:
+                        samples = np.array(mic_buf, dtype=np.int8)
+                        tensor, rms = mic_prep.process(samples)
+                        if tensor is not None:
+                            with torch.no_grad():
+                                pred = mic_model(tensor).argmax(dim=1).item()
+                            self.queue.put(
+                                {"type": "mic", "label": MIC_CLASSES[pred], "rms": rms}
+                            )
+                        else:
+                            self.queue.put({"type": "mic", "label": None, "rms": rms})
+
+        except Exception:
+            self.queue.put({"type": "disconnected"})
+
 
 def run():
     root = tk.Tk()
-    GUI(root)
+    gui = GUI(root)
+    gui.start_thread()
     root.mainloop()
 
 
