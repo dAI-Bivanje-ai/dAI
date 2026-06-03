@@ -84,6 +84,7 @@ class GUI:
         self.last_mic = None
 
         self.build()
+        self.schedule_refresh()
 
     def build(self):
         self.root.geometry("480x400")
@@ -173,6 +174,58 @@ class GUI:
     def set_mic(self, text, color):
         self.mic_label_var.set(text)
         self.mic_lbl.configure(fg=color)
+
+    def schedule_refresh(self):
+        self.root.after(self.REFRESH_RATE_MS, self.refresh)
+
+    def refresh(self):
+        while True:
+            try:
+                state = self.queue.get_nowait()
+            except queue.Empty:
+                break
+            self.apply(state)
+        self.schedule_refresh()
+
+    def apply(self, state):
+        t = state.get("type")
+
+        if t == "connected":
+            self.conn_var.set(f"Povezano: {state['port']}")
+
+        elif t == "disconnected":
+            self.conn_var.set("Ni povezave")
+
+        elif t == "imu":
+            label = state["label"]
+            self.last_imu = label
+            self.set_imu(label, CLASS_COLORS.get(label, IDLE_COLOR))
+            self.update_notif()
+
+        elif t == "mic":
+            label = state.get("label")
+            self.last_mic = label
+            if label is None:
+                self.set_mic("TIŠINA", IDLE_COLOR)
+            else:
+                self.set_mic(label, CLASS_COLORS.get(label, IDLE_COLOR))
+            self.update_notif()
+
+        elif t == "error":
+            self.notif_var.set(f"Napaka: {state['msg']}")
+
+    def update_notif(self):
+        if self.last_imu is None:
+            self.notif_var.set("Čakam na podatke ...")
+            return
+        if self.last_mic is None:
+            self.notif_var.set(f"{self.last_imu} — tišina v ozadju")
+            return
+        notif = NOTIFICATIONS.get((self.last_imu, self.last_mic))
+        if notif:
+            self.notif_var.set(notif)
+        else:
+            self.notif_var.set(f"{self.last_imu} + {self.last_mic}")
 
 
 def run():
