@@ -1,5 +1,5 @@
 import logging
-from collections import deque
+from collections import Counter, deque
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -63,8 +63,67 @@ class RealtimeConfig:
     imu_predict_every_n_packets: int = 12
     mic_predict_every_n_packets: int = 100
 
+    # Stabilizacija napovedi.
+    # Sistem potrdi stanje šele, ko je dovolj zadnjih napovedi enakih.
+    stable_prediction_window: int = 10
+    stable_prediction_ratio: float = 0.90
+
 
 CONFIG = RealtimeConfig()
+
+class PredictionStabilizer:
+    """
+    Stabilizira realtime napovedi modela.
+
+    Hrani zadnjih N napovedi in potrdi razred šele,
+    ko dovolj velik delež napovedi kaže na isti razred.
+    """
+
+    def __init__(self, window_size: int, min_ratio: float) -> None:
+        # Sliding window zadnjih N predictionov.
+        self.window: deque[str] = deque(maxlen=window_size)
+
+        # Minimalni delež enakih predictionov 90 %.
+        self.min_ratio = min_ratio
+
+        # Zadnji že potrjeni razred.
+        # To prepreči, da bi isti stabilen razred izpisovali znova in znova.
+        self.last_confirmed: str | None = None
+
+    def update(self, label: str | None) -> str | None:
+        """
+        Doda novo napoved in vrne stabilen razred, če je dovolj zanesljiv.
+
+        Vrne:
+        - None, če še ni dovolj napovedi ali stanje ni stabilno,
+        - ime razreda, če je potrjen nov stabilen razred.
+        """
+
+        if label is None:
+            return None
+
+        self.window.append(label)
+
+        # Dokler okno ni polno, še ne odločamo.
+        if len(self.window) < self.window.maxlen:
+            return None
+
+        # Preštejemo, kateri razred je najpogostejši v zadnjih N napovedih.
+        label_counts = Counter(self.window)
+        most_common_label, count = label_counts.most_common(1)[0]
+
+        ratio = count / len(self.window)
+
+        # Če najpogostejši razred ne doseže praga, stanje še ni stabilno.
+        if ratio < self.min_ratio:
+            return None
+
+        # Če je to isti razred kot zadnjič, ga ne izpišemo ponovno.
+        if most_common_label == self.last_confirmed:
+            return None
+
+        self.last_confirmed = most_common_label
+        return most_common_label
 
 # Pretvorba številčnega izhoda v ime razreda
 IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
@@ -167,7 +226,7 @@ def run_mic_inference(
 
     # Če je signal tišina ali še ni dovolj dolg, preprocessor vrne None.
     if tensor is None:
-        return None, rms
+        return "TIŠINA", rms
     
     # Model uporabimo samo za napoved, zato gradienti niso potrebni.
     with torch.no_grad():
@@ -254,6 +313,18 @@ def run() -> None:
     )
     # Mikrofon ostane v ločenem bufferju ker je 1D.
     mic_buf: deque = deque(maxlen=MIC_MAXLEN)
+
+    # Ustvarimo stabilizatorja
+    imu_stabilizer = PredictionStabilizer(
+        window_size=CONFIG.stable_prediction_window,
+        min_ratio=CONFIG.stable_prediction_ratio,
+    )
+
+    mic_stabilizer = PredictionStabilizer(
+        window_size=CONFIG.stable_prediction_window,
+        min_ratio=CONFIG.stable_prediction_ratio,
+    )
+
     # Štejemo pakete, da inference ne teče na vsak paket, ampak periodično.
     # Štejemo za inferenco na vsak n-ti paket
     packet_count = 0
@@ -261,6 +332,7 @@ def run() -> None:
     last_imu_label: str | None = None
     last_mic_label: str | None = None
     last_rms = 0.0
+
 
     try:
         # prehod po blokih bajtov iz serial porta
@@ -284,24 +356,30 @@ def run() -> None:
                 
                 # Inference izvajamo na vsak N-ti paket
                 if packet_count % CONFIG.imu_predict_every_n_packets == 0:
+
                     acc_window, gyro_window = signal_buffer.get_window()
 
-                    label = run_imu_inference(
+                    imu_label = run_imu_inference(
                         imu_model,
                         imu_preprocessor,
                         acc_window,
                         gyro_window,
                     )
+                    stable_imu_label = imu_stabilizer.update(imu_label)
                     # Če model vrne oznako, jo shranimo kot zadnje znano IMU stanje.
-                    if label:
-                        last_imu_label = label
+                    if stable_imu_label is not None:
+                        last_imu_label = stable_imu_label
                         print_status(last_imu_label, last_mic_label, last_rms)
                 # MIC inference izvajamo redkeje, ker je mikrofonski segment daljši.
                 if packet_count % CONFIG.mic_predict_every_n_packets == 0:
-                    label, rms = run_mic_inference(mic_model, mic_preprocessor, mic_buf)
+
+                    mic_label, rms = run_mic_inference(mic_model, mic_preprocessor, mic_buf)
                     last_rms = rms
-                    last_mic_label = label
-                    print_status(last_imu_label, last_mic_label, last_rms)
+                    stable_mic_label = mic_stabilizer.update(mic_label)
+
+                    if stable_mic_label is not None:
+                        last_mic_label = stable_mic_label
+                        print_status(last_imu_label, last_mic_label, last_rms)
 
     except KeyboardInterrupt:
         # CTRL + C 
