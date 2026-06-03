@@ -61,7 +61,7 @@ def build_dataset_mic(files):
     """
     result = []
     SEG_FRAMES = (
-        311  # floor((5 * 8000 - 256) / 128) + 1 = 311, toliko framov rabimo za 5s
+        62  # floor((1 * 8000 - 256) / 128) + 1 = 62, toliko framov rabimo za 1s
     )
 
     for bin_file, label in files:
