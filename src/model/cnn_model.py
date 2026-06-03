@@ -22,11 +22,11 @@ class SensorBranch(nn.Module):
             # odstrani negativne vrednosti in doda nelinearnost
             nn.ReLU(),
             # zmanjša dimenzije spektograma za prb. 2x
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(2, ceil_mode=True),
             # druga konvolucija iz 16 feature map naredi 32 kompleksnejših FM.
             nn.Conv2d(16, 32, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(2, ceil_mode=True),
             # ne glede velikost vhoda mreža na koncu vrne (32, 4, 4)
             nn.AdaptiveAvgPool2d((4, 4)),
             # pretvori feature map z naučenimi značilkami senzorja v 1D vektor

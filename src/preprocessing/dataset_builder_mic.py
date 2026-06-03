@@ -60,8 +60,10 @@ def build_dataset_mic(files):
             y: numpy array (N,) — labele (0=glasba, 1=pogovor)
     """
     result = []
+    # fvz je 8000, razrezemo na okna po 256 vzorcev (32ms), 0.5 prekrivanje(128 vzorcev), nad vsakim oknom
+    # naredimo FFT -> to je en FRAME. 62 framov skupaj -> 1s
     SEG_FRAMES = (
-        311  # floor((5 * 8000 - 256) / 128) + 1 = 311, toliko framov rabimo za 5s
+        62  # floor((1 * 8000 - 256) / 128) + 1 = 62, toliko framov rabimo za 1s
     )
 
     for bin_file, label in files:

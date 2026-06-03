@@ -30,7 +30,13 @@ def load_session(bin_file):
     return (fvz_acc, sig_acc, fvz_gyro, sig_gyro)
 
 
-SEGMENT_LENGTH = 5
+# ACC ima 25 fvz
+# razrezemo na okna po 49 vzorcev (2s pribl)
+# vsako okno -> FFT -> 1 frame
+# prvi frame gre od 0s do 2s
+# pri SEGMENT_LENGTH = 2 damo 2 frama v spektrogram, drugi frame gre od 1s do 3s
+# skupaj od 0 do 3s
+SEGMENT_LENGTH = 2  # vsak segment predstavlja približno 1 sekundo posnetka, 50% overlap -> 3s z SEGMENT_LENGTH = 2
 
 
 def build_dataset(files):
@@ -46,8 +52,8 @@ def build_dataset(files):
     for bin_file, label in files:
         fvz_acc, sig_acc, fvz_gyro, sig_gyro = load_session(bin_file)
 
-        ACC_W = 49
-        GYRO_W = 211
+        ACC_W = 49  # toliko vzrocev za 2s
+        GYRO_W = 211  # toliko vzorcev za 2s
 
         windows_acc = window_signal_seconds(sig_acc, fvz_acc, force_W=ACC_W)
         windows_gyro = window_signal_seconds(sig_gyro, fvz_gyro, force_W=GYRO_W)
