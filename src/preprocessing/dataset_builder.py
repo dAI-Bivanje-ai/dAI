@@ -30,7 +30,7 @@ def load_session(bin_file):
     return (fvz_acc, sig_acc, fvz_gyro, sig_gyro)
 
 
-SEGMENT_LENGTH = 5
+SEGMENT_LENGTH = 2
 
 
 def build_dataset(files):
