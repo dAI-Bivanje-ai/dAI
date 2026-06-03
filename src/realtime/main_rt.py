@@ -226,7 +226,7 @@ def run_mic_inference(
 
     # Če je signal tišina ali še ni dovolj dolg, preprocessor vrne None.
     if tensor is None:
-        return None, rms
+        return "TIŠINA", rms
     
     # Model uporabimo samo za napoved, zato gradienti niso potrebni.
     with torch.no_grad():
@@ -313,6 +313,18 @@ def run() -> None:
     )
     # Mikrofon ostane v ločenem bufferju ker je 1D.
     mic_buf: deque = deque(maxlen=MIC_MAXLEN)
+
+    # Ustvarimo stabilizatorja
+    imu_stabilizer = PredictionStabilizer(
+        window_size=CONFIG.stable_prediction_window,
+        min_ratio=CONFIG.stable_prediction_ratio,
+    )
+
+    mic_stabilizer = PredictionStabilizer(
+        window_size=CONFIG.stable_prediction_window,
+        min_ratio=CONFIG.stable_prediction_ratio,
+    )
+
     # Štejemo pakete, da inference ne teče na vsak paket, ampak periodično.
     # Štejemo za inferenco na vsak n-ti paket
     packet_count = 0
@@ -320,6 +332,7 @@ def run() -> None:
     last_imu_label: str | None = None
     last_mic_label: str | None = None
     last_rms = 0.0
+
 
     try:
         # prehod po blokih bajtov iz serial porta
@@ -343,24 +356,30 @@ def run() -> None:
                 
                 # Inference izvajamo na vsak N-ti paket
                 if packet_count % CONFIG.imu_predict_every_n_packets == 0:
+
                     acc_window, gyro_window = signal_buffer.get_window()
 
-                    label = run_imu_inference(
+                    imu_label = run_imu_inference(
                         imu_model,
                         imu_preprocessor,
                         acc_window,
                         gyro_window,
                     )
+                    stable_imu_label = imu_stabilizer.update(imu_label)
                     # Če model vrne oznako, jo shranimo kot zadnje znano IMU stanje.
-                    if label:
-                        last_imu_label = label
+                    if stable_imu_label is not None:
+                        last_imu_label = stable_imu_label
                         print_status(last_imu_label, last_mic_label, last_rms)
                 # MIC inference izvajamo redkeje, ker je mikrofonski segment daljši.
                 if packet_count % CONFIG.mic_predict_every_n_packets == 0:
-                    label, rms = run_mic_inference(mic_model, mic_preprocessor, mic_buf)
+
+                    mic_label, rms = run_mic_inference(mic_model, mic_preprocessor, mic_buf)
                     last_rms = rms
-                    last_mic_label = label
-                    print_status(last_imu_label, last_mic_label, last_rms)
+                    stable_mic_label = mic_stabilizer.update(mic_label)
+
+                    if stable_mic_label is not None:
+                        last_mic_label = stable_mic_label
+                        print_status(last_imu_label, last_mic_label, last_rms)
 
     except KeyboardInterrupt:
         # CTRL + C 
