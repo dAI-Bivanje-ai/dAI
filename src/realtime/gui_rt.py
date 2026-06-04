@@ -3,7 +3,7 @@ import threading
 import tkinter as tk
 from collections import deque
 from pathlib import Path
-
+import time
 import numpy as np
 import torch
 
@@ -41,9 +41,8 @@ GYRO_RESOLUTION = 8.75e-3
 MIC_MAXLEN = int(MIC_SEGMENT_SECONDS * MIC_SAMPLE_RATE)
 
 
-# to pametno narediti time-based, 1s za mikrofon, 3s za IMU, vseeno dela
-IMU_PREDICT_EVERY_N = 12
-MIC_PREDICT_EVERY_N = 100
+IMU_PREDICT_INTERVAL_S = 3.0
+MIC_PREDICT_INTERVAL_S = 1.0
 
 CLASS_COLORS = {
     "DELO": "#2ecc71",
@@ -262,7 +261,8 @@ class GUI:
             gyro_resolution=GYRO_RESOLUTION,
         )
         mic_buf: deque = deque(maxlen=MIC_MAXLEN)
-        n = 0
+        last_imu_time = 0.0
+        last_mic_time = 0.0
 
         try:
             for chunk in reader.read_stream():
@@ -277,9 +277,10 @@ class GUI:
                     if ID_MIC in chunks:
                         mic_buf.extend(chunks[ID_MIC])
 
-                    n += 1
+                    now = time.monotonic()
 
-                    if n % IMU_PREDICT_EVERY_N == 0:
+                    if now - last_imu_time > IMU_PREDICT_INTERVAL_S:
+                        last_imu_time = now
                         acc_window, gyro_window = signal_buffer.get_window()
                         if acc_window is not None and gyro_window is not None:
                             result = imu_prep.process(acc_window, gyro_window)
@@ -291,7 +292,8 @@ class GUI:
                                     {"type": "imu", "label": IMU_CLASSES[pred]}
                                 )
 
-                    if n % MIC_PREDICT_EVERY_N == 0 and mic_buf:
+                    if now - last_mic_time > MIC_PREDICT_INTERVAL_S:
+                        last_mic_time = now
                         samples = np.array(mic_buf, dtype=np.int8)
                         tensor, rms = mic_prep.process(samples)
                         if tensor is not None:
