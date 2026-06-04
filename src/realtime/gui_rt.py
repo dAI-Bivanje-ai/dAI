@@ -13,6 +13,7 @@ from src.realtime.packet_parser import LivePacketParser, ID_MIC
 from src.realtime.preproc_rt import MicRealtimePreprocessor, RealtimePreprocessor
 from src.realtime.serial_reader import LiveSerialReader
 from src.realtime.signal_buffer import SignalBuffer
+from src.realtime.prediction_stabilizer import PredictionStabilizer
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
@@ -261,6 +262,9 @@ class GUI:
             gyro_resolution=GYRO_RESOLUTION,
         )
         mic_buf: deque = deque(maxlen=MIC_MAXLEN)
+
+        mic_stabilizer = PredictionStabilizer(window_size=5, min_ratio=0.60)
+
         last_imu_time = 0.0
         last_mic_time = 0.0
 
@@ -292,16 +296,22 @@ class GUI:
                                     {"type": "imu", "label": IMU_CLASSES[pred]}
                                 )
 
-                    if now - last_mic_time > MIC_PREDICT_INTERVAL_S:
+                    if now - last_mic_time > MIC_PREDICT_INTERVAL_S and mic_buf:
                         last_mic_time = now
                         samples = np.array(mic_buf, dtype=np.int8)
                         tensor, rms = mic_prep.process(samples)
                         if tensor is not None:
                             with torch.no_grad():
                                 pred = mic_model(tensor).argmax(dim=1).item()
-                            self.queue.put(
-                                {"type": "mic", "label": MIC_CLASSES[pred], "rms": rms}
-                            )
+                            stable = mic_stabilizer.update(MIC_CLASSES[pred])
+                            if stable is not None:
+                                self.queue.put(
+                                    {
+                                        "type": "mic",
+                                        "label": stable,
+                                        "rms": rms,
+                                    }
+                                )
                         else:
                             self.queue.put({"type": "mic", "label": None, "rms": rms})
 
