@@ -2,6 +2,12 @@ import socket
 import threading
 import serial.tools.list_ports
 import time
+import serial
+from src.data_logger.data_logger import DataLogger
+from pathlib import Path
+
+WORK_DIR = Path("/opt/app")
+
 
 HOST = "127.0.0.1"
 PORT = 5000
@@ -131,6 +137,15 @@ def broadcast(message: str):
 
         for conn in dead_clients:
             connected_clients.remove(conn)
+
+
+def stm32_open(port: str) -> DataLogger:
+    data_logger = DataLogger(port=port)
+    data_logger.open()
+    data_logger.ser.write(b"OFF\r\n")
+    time.sleep(1)
+    data_logger.ser.reset_input_buffer()
+    return data_logger
 
 
 def main():
