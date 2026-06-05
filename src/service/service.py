@@ -48,7 +48,7 @@ def handle_client(conn, addr):
                 if not data:
                     break
 
-                command = data.decode().strip()
+                command = data.decode(errors="ignore").strip()
 
                 if command == "STATUS":
                     with stm32_lock:
@@ -57,11 +57,6 @@ def handle_client(conn, addr):
                         response = "STM32 is connected\n"
                     else:
                         response = "FAIL: STM32 is not connected\n"
-
-                elif command == "STOP":
-                    response = "Stopping service\n"
-                    conn.sendall(response.encode())
-                    break
 
                 elif command == "GET_LAST":
                     with stm32_lock:
