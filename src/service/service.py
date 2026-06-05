@@ -236,24 +236,30 @@ def stm32_process_file(logger: DataLogger, filename: str) -> None:
 
 def get_files_from_stm32(port: str, which: str = "all", filename: str | None = None):
     logger = stm32_open(port)
-    files = stm32_list_files(logger)
+    try:
+        files = stm32_list_files(logger)
 
-    if which == "all":
-        for file in files:
-            stm32_process_file(logger, file)
-    elif which == "last":
-        stm32_process_file(logger, files[-1])
-    elif which == "file":
-        stm32_process_file(logger, filename)
-
-    stm32_close(logger)
+        if which == "all":
+            for file in files:
+                stm32_process_file(logger, file)
+        elif which == "last":
+            if not files:
+                raise RuntimeError("No files on STM32")
+            stm32_process_file(logger, files[-1])
+        elif which == "file":
+            stm32_process_file(logger, filename)
+    finally:
+        # Port vedno zapremo, sicer naslednja operacija ne more odpreti porta.
+        stm32_close(logger)
 
 
 def stm32_delete(port: str) -> None:
     logger = stm32_open(port)
-    logger.ser.write(b"DELETE\r\n")
-    time.sleep(1)
-    stm32_close(logger)
+    try:
+        logger.ser.write(b"DELETE\r\n")
+        time.sleep(1)
+    finally:
+        stm32_close(logger)
 
 
 def main():
