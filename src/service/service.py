@@ -59,7 +59,14 @@ def stm32_monitor():
     while True:
         detected = find_stm32_port()
         with stm32_lock:
+            # shranimo originalni port
+            prev = stm32_port
             stm32_port = detected
+        if prev is None and detected:
+            broadcast(f"STM32 detected at {detected}\n")
+        elif prev and detected is None:
+            broadcast("STM32 has disconnected\n")
+
         time.sleep(INTERVAL)
 
 
