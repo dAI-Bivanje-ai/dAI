@@ -7,8 +7,10 @@ HOST = "127.0.0.1"
 PORT = 5000
 STM32_VID = "0483"
 STM32_PID = "5740"
+INTERVAL = 1
 stm32_port: str | None = None
 stm32_lock = threading.Lock()
+import time
 
 
 def handle_client(conn, addr):
@@ -47,6 +49,16 @@ def find_stm32_port():
             return port.device
 
     return None
+
+
+# konstantno preverjanje
+def stm32_monitor():
+    global stm32_port
+    while True:
+        detected = find_stm32_port()
+        with stm32_lock:
+            stm32_port = detected
+        time.sleep(INTERVAL)
 
 
 def main():
