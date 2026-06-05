@@ -34,68 +34,87 @@ def handle_client(conn, addr):
         with clients_lock:
             connected_clients.append(conn)
 
-        while True:
+        try:
+            while True:
 
-            data = conn.recv(1024)
+                data = conn.recv(1024)
 
-            if not data:
-                break
+                if not data:
+                    break
 
-            command = data.decode().strip()
+                command = data.decode().strip()
 
-            if command == "STATUS":
-                with stm32_lock:
-                    port = stm32_port
-                if port:
-                    response = "STM32 is connected\n"
+                if command == "STATUS":
+                    with stm32_lock:
+                        port = stm32_port
+                    if port:
+                        response = "STM32 is connected\n"
+                    else:
+                        response = "FAIL: STM32 is not connected\n"
+
+                elif command == "STOP":
+                    response = "Stopping service\n"
+                    conn.sendall(response.encode())
+                    break
+
+                elif command == "GET_LAST":
+                    with stm32_lock:
+                        port = stm32_port
+                    if port is None:
+                        response = "FAIL: STM32 is not connected\n"
+                    else:
+                        try:
+                            get_files_from_stm32(port, which="last")
+                            response = "Last file from STM32 has been processed\n"
+                        except Exception as e:
+                            response = f"FAIL: {e}\n"
+
+                elif command == "GET_ALL":
+                    with stm32_lock:
+                        port = stm32_port
+                    if port is None:
+                        response = "FAIL: STM32 is not connected\n"
+                    else:
+                        try:
+                            get_files_from_stm32(port, which="all")
+                            response = "All files from STM32 are processed\n"
+                        except Exception as e:
+                            response = f"FAIL: {e}\n"
+
+                elif command.startswith("GET_FILE|"):
+                    with stm32_lock:
+                        port = stm32_port
+                    if port is None:
+                        response = "FAIL: STM32 is not connected\n"
+                    else:
+                        filename = command.split("|", 1)[1]
+                        try:
+                            get_files_from_stm32(port, which="file", filename=filename)
+                            response = f"File {filename} from STM32 has been processed\n"
+                        except Exception as e:
+                            response = f"FAIL: {e}\n"
+
+                elif command == "DELETE":
+                    with stm32_lock:
+                        port = stm32_port
+                    if port is None:
+                        response = "FAIL: STM32 is not connected\n"
+                    else:
+                        try:
+                            stm32_delete(port)
+                            response = "All files on STM32 are deleted\n"
+                        except Exception as e:
+                            response = f"FAIL: {e}\n"
+
                 else:
-                    response = "FAIL: STM32 is not connected\n"
+                    response = f"UNKNOWN: {command}\n"
 
-            elif command == "STOP":
-                response = "Stopping service\n"
                 conn.sendall(response.encode())
-                break
-
-            elif command == "GET_LAST":
-                with stm32_lock:
-                    port = stm32_port
-                if port is None:
-                    response = "FAIL: STM32 is not connected\n"
-                else:
-                    response = "pass"  # se ni implementirano
-
-            elif command == "GET_ALL":
-                with stm32_lock:
-                    port = stm32_port
-                if port is None:
-                    response = "FAIL: STM32 is not connected\n"
-                else:
-                    response = "pass"  # se ni implementirano
-
-            elif command.startswith("GET_FILE|"):
-                with stm32_lock:
-                    port = stm32_port
-                if port is None:
-                    response = "FAIL: STM32 is not connected\n"
-                else:
-                    filename = command.split("|", 1)[1]
-                    response = "pass"
-
-            elif command == "DELETE":
-                with stm32_lock:
-                    port = stm32_port
-                if port is None:
-                    response = "FAIL: STM32 is not connected\n"
-                else:
-                    response = "pass"  # se ni implementirano
-            else:
-
-                response = f"UNKNOWN: {command}\n"
-
-            conn.sendall(response.encode())
-
-        with clients_lock:
-            connected_clients.remove(conn)
+        except OSError:
+            pass
+        finally:
+            with clients_lock:
+                connected_clients.remove(conn)
 
 
 # skenira USB porte, najde stm32
