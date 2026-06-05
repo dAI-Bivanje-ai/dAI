@@ -20,6 +20,9 @@ INTERVAL = 1
 stm32_port: str | None = None
 stm32_lock = threading.Lock()
 
+# sčiti dejansko serijsko komunikacijo — samo ena operacija na STM32 naenkrat.
+stm32_io_lock = threading.Lock()
+
 connected_clients: list = []
 clients_lock = threading.Lock()
 
@@ -67,9 +70,11 @@ def handle_client(conn, addr):
                         response = "FAIL: STM32 is not connected\n"
                     else:
                         try:
-                            get_files_from_stm32(port, which="last")
+                            with stm32_io_lock:
+                                get_files_from_stm32(port, which="last")
                             response = "Last file from STM32 has been processed\n"
                         except Exception as e:
+                            logging.exception("GET_LAST neuspešen")
                             response = f"FAIL: {e}\n"
 
                 elif command == "GET_ALL":
@@ -79,9 +84,11 @@ def handle_client(conn, addr):
                         response = "FAIL: STM32 is not connected\n"
                     else:
                         try:
-                            get_files_from_stm32(port, which="all")
+                            with stm32_io_lock:
+                                get_files_from_stm32(port, which="all")
                             response = "All files from STM32 are processed\n"
                         except Exception as e:
+                            logging.exception("GET_ALL neuspešen")
                             response = f"FAIL: {e}\n"
 
                 elif command.startswith("GET_FILE|"):
@@ -92,11 +99,13 @@ def handle_client(conn, addr):
                     else:
                         filename = command.split("|", 1)[1]
                         try:
-                            get_files_from_stm32(port, which="file", filename=filename)
+                            with stm32_io_lock:
+                                get_files_from_stm32(port, which="file", filename=filename)
                             response = (
                                 f"File {filename} from STM32 has been processed\n"
                             )
                         except Exception as e:
+                            logging.exception("GET_FILE neuspešen")
                             response = f"FAIL: {e}\n"
 
                 elif command == "DELETE":
@@ -106,9 +115,11 @@ def handle_client(conn, addr):
                         response = "FAIL: STM32 is not connected\n"
                     else:
                         try:
-                            stm32_delete(port)
+                            with stm32_io_lock:
+                                stm32_delete(port)
                             response = "All files on STM32 are deleted\n"
                         except Exception as e:
+                            logging.exception("DELETE neuspešen")
                             response = f"FAIL: {e}\n"
 
                 else:
@@ -119,7 +130,9 @@ def handle_client(conn, addr):
             pass
         finally:
             with clients_lock:
-                connected_clients.remove(conn)
+                # broadcast() je mogoce conn že odstranil kot mrtvega
+                if conn in connected_clients:
+                    connected_clients.remove(conn)
 
 
 # skenira USB porte, najde stm32
