@@ -1,7 +1,7 @@
 import socket
 import threading
 import serial.tools.list_ports
-
+import time
 
 HOST = "127.0.0.1"
 PORT = 5000
@@ -10,7 +10,9 @@ STM32_PID = "5740"
 INTERVAL = 1
 stm32_port: str | None = None
 stm32_lock = threading.Lock()
-import time
+
+connected_clients: list = []
+clients_lock = threading.Lock()
 
 
 def handle_client(conn, addr):
@@ -59,6 +61,21 @@ def stm32_monitor():
         with stm32_lock:
             stm32_port = detected
         time.sleep(INTERVAL)
+
+
+# broadcasta vsem, tisti ki so odklopljeni jih odstrani
+def broadcast(message: str):
+
+    with clients_lock:
+        dead_clients = []
+        for conn in connected_clients:
+            try:
+                conn.sendall(message.encode())
+            except OSError:
+                dead_clients.append(conn)
+
+        for conn in dead_clients:
+            connected_clients.remove(conn)
 
 
 def main():
