@@ -197,6 +197,13 @@ def get_files_from_stm32(port: str, which: str = "all", filename: str | None = N
     stm32_close(logger)
 
 
+def stm32_delete(port: str) -> None:
+    logger = stm32_open(port)
+    logger.ser.write(b"DELETE\r\n")
+    time.sleep(1)
+    stm32_close(logger)
+
+
 def main():
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
