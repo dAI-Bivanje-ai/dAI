@@ -175,6 +175,28 @@ def stm32_get_file(logger: DataLogger, filename: str) -> Path:
     return path
 
 
+def stm32_process_file(logger: DataLogger, filename: str) -> None:
+    path = stm32_get_file(logger, filename)
+    packets = logger.parse_file(str(path))
+    npz_path = WORK_DIR / (path.stem + ".npz")
+    logger.save_data(str(npz_path), packets)
+
+
+def get_files_from_stm32(port: str, which: str = "all", filename: str | None = None):
+    logger = stm32_open(port)
+    files = stm32_list_files(logger)
+
+    if which == "all":
+        for file in files:
+            stm32_process_file(logger, file)
+    elif which == "last":
+        stm32_process_file(logger, files[-1])
+    elif which == "file":
+        stm32_process_file(logger, filename)
+
+    stm32_close(logger)
+
+
 def main():
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
