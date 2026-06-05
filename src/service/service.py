@@ -18,7 +18,13 @@ clients_lock = threading.Lock()
 def handle_client(conn, addr):
 
     with conn:
-        conn.sendall(b"Connected to SPO STM32 service\n")
+        with stm32_lock:
+            port = stm32_port
+        if port is None:
+            conn.sendall(b"Connected to SPO STM32 service - No STM32 detected\n")
+        else:
+            conn.sendall(b"Connected to SPO STM32 service\n")
+
         with clients_lock:
             connected_clients.append(conn)
 
@@ -32,7 +38,12 @@ def handle_client(conn, addr):
             command = data.decode().strip()
 
             if command == "STATUS":
-                response = "SPO STM32 service is running\n"
+                with stm32_lock:
+                    port = stm32_port
+                if port:
+                    response = "STM32 is connected\n"
+                else:
+                    response = "FAIL: STM32 is not connected\n"
 
             elif command == "STOP":
                 response = "Stopping service\n"
@@ -110,4 +121,4 @@ def main():
 
 
 if __name__ == "__main__":
-    find_stm32_port()
+    main()
