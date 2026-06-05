@@ -166,6 +166,15 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
     return files
 
 
+def stm32_get_file(logger: DataLogger, filename: str) -> Path:
+    logger.ser.write(f"GET {filename}\r\n".encode())
+    time.sleep(1)
+    data = logger.ser.read_all()
+    path = WORK_DIR / filename
+    path.write_bytes(data)
+    return path
+
+
 def main():
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
