@@ -1,0 +1,16 @@
+[Unit]
+Description=SPO SMT32 TCP Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/app
+ExecStart=/usr/bin/python3 /opt/app/src/service/service.py
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
