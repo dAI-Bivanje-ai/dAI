@@ -33,3 +33,21 @@ def handle_client(conn, addr):
                 response = f"UNKNOWN: {command}\n"
 
             conn.sendall(response.encode())
+
+
+def main():
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind((HOST, PORT))
+        server.listen()
+
+        while True:
+            conn, addr = server.accept()
+            thread = threading.Thread(
+                # handle_client teče v svojem threadu
+                target=handle_client,
+                args=(conn, addr),
+                daemon=True,
+            )
+            thread.start()
