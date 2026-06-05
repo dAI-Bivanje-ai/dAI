@@ -50,6 +50,38 @@ def handle_client(conn, addr):
                 conn.sendall(response.encode())
                 break
 
+            elif command == "GET_LAST":
+                with stm32_lock:
+                    port = stm32_port
+                if port is None:
+                    response = "FAIL: STM32 is not connected\n"
+                else:
+                    response = "pass"  # se ni implementirano
+
+            elif command == "GET_ALL":
+                with stm32_lock:
+                    port = stm32_port
+                if port is None:
+                    response = "FAIL: STM32 is not connected\n"
+                else:
+                    response = "pass"  # se ni implementirano
+
+            elif command.startswith("GET_FILE|"):
+                with stm32_lock:
+                    port = stm32_port
+                if port is None:
+                    response = "FAIL: STM32 is not connected\n"
+                else:
+                    filename = command.split("|", 1)[1]
+                    response = "pass"
+
+            elif command == "DELETE":
+                with stm32_lock:
+                    port = stm32_port
+                if port is None:
+                    response = "FAIL: STM32 is not connected\n"
+                else:
+                    response = "pass"  # se ni implementirano
             else:
 
                 response = f"UNKNOWN: {command}\n"
