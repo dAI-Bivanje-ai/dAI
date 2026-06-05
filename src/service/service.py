@@ -18,7 +18,7 @@ STM32_VID = "0483"
 STM32_PID = "5740"
 INTERVAL = 1
 stm32_port: str | None = None
-stm32_lock = threading.Lock()
+stm32_lock = threading.Lock()  # lock samo za port spremelnjivko (string)
 
 # sčiti dejansko serijsko komunikacijo — samo ena operacija na STM32 naenkrat.
 stm32_io_lock = threading.Lock()
@@ -100,7 +100,9 @@ def handle_client(conn, addr):
                         filename = command.split("|", 1)[1]
                         try:
                             with stm32_io_lock:
-                                get_files_from_stm32(port, which="file", filename=filename)
+                                get_files_from_stm32(
+                                    port, which="file", filename=filename
+                                )
                             response = (
                                 f"File {filename} from STM32 has been processed\n"
                             )
@@ -191,10 +193,24 @@ def stm32_close(logger: DataLogger) -> None:
     logger.close()
 
 
+def read_until_idle(logger: DataLogger, idle_timeout: float = 2.0) -> bytes:
+    prev_timeout = logger.ser.timeout
+    logger.ser.timeout = idle_timeout
+    chunks = bytearray()
+    try:
+        while True:
+            chunk = logger.ser.read(4096)
+            if not chunk:  # idle_timeout sekund tišine = konec
+                break
+            chunks.extend(chunk)
+    finally:
+        logger.ser.timeout = prev_timeout
+    return bytes(chunks)
+
+
 def stm32_list_files(logger: DataLogger) -> list[str]:
     logger.ser.write(b"LIST\r\n")
-    time.sleep(0.5)
-    response = logger.ser.read_all().decode(errors="ignore")
+    response = read_until_idle(logger, idle_timeout=1.0).decode(errors="ignore")
     files = []
     for line in response.splitlines():
         line = line.strip()
@@ -205,8 +221,7 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
 
 def stm32_get_file(logger: DataLogger, filename: str) -> Path:
     logger.ser.write(f"GET {filename}\r\n".encode())
-    time.sleep(1)
-    data = logger.ser.read_all()
+    data = read_until_idle(logger, idle_timeout=2.0)
     path = WORK_DIR / filename
     path.write_bytes(data)
     return path
