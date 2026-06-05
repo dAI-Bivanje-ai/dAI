@@ -1,9 +1,14 @@
 import socket
 import threading
+import serial.tools.list_ports
 
 
 HOST = "127.0.0.1"
 PORT = 5000
+STM32_VID = "0483"
+STM32_PID = "5740"
+stm32_port: str | None = None
+stm32_lock = threading.Lock()
 
 
 def handle_client(conn, addr):
@@ -35,6 +40,15 @@ def handle_client(conn, addr):
             conn.sendall(response.encode())
 
 
+# skenira USB porte, najde stm32
+def find_stm32_port():
+    for port in serial.tools.list_ports.comports():
+        if f"VID:PID={STM32_VID}:{STM32_PID}" in port.hwid.upper():
+            return port.device
+
+    return None
+
+
 def main():
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
@@ -51,3 +65,7 @@ def main():
                 daemon=True,
             )
             thread.start()
+
+
+if __name__ == "__main__":
+    find_stm32_port()
