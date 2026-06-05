@@ -19,6 +19,8 @@ def handle_client(conn, addr):
 
     with conn:
         conn.sendall(b"Connected to SPO STM32 service\n")
+        with clients_lock:
+            connected_clients.append(conn)
 
         while True:
 
@@ -42,6 +44,9 @@ def handle_client(conn, addr):
                 response = f"UNKNOWN: {command}\n"
 
             conn.sendall(response.encode())
+
+        with clients_lock:
+            connected_clients.remove(conn)
 
 
 # skenira USB porte, najde stm32
