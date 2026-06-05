@@ -154,6 +154,18 @@ def stm32_close(logger: DataLogger) -> None:
     logger.close()
 
 
+def stm32_list_files(logger: DataLogger) -> list[str]:
+    logger.ser.write(b"LIST\r\n")
+    time.sleep(0.5)
+    response = logger.ser.read_all().decode(errors="ignore")
+    files = []
+    for line in response.splitlines():
+        line = line.strip()
+        if line.endswith(".BIN"):
+            files.append(line)
+    return files
+
+
 def main():
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
