@@ -68,6 +68,7 @@ def main():
         server.bind((HOST, PORT))
         server.listen()
 
+        threading.Thread(target=stm32_monitor, daemon=True).start()
         while True:
             conn, addr = server.accept()
             thread = threading.Thread(
