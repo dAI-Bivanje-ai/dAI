@@ -3,10 +3,13 @@ import threading
 import serial.tools.list_ports
 import time
 import serial
+import logging
 from src.data_logger.data_logger import DataLogger
 from pathlib import Path
 
-WORK_DIR = Path("/opt/app")
+# datoteke shranimo v trenutno delovno pot storitve (WorkingDirectory v systemd).
+
+WORK_DIR = Path.cwd()
 
 
 HOST = "127.0.0.1"
@@ -90,7 +93,9 @@ def handle_client(conn, addr):
                         filename = command.split("|", 1)[1]
                         try:
                             get_files_from_stm32(port, which="file", filename=filename)
-                            response = f"File {filename} from STM32 has been processed\n"
+                            response = (
+                                f"File {filename} from STM32 has been processed\n"
+                            )
                         except Exception as e:
                             response = f"FAIL: {e}\n"
 
@@ -224,6 +229,14 @@ def stm32_delete(port: str) -> None:
 
 
 def main():
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+    logging.info(
+        "Starting SPO STM32 service on %s:%s (WORK_DIR=%s)", HOST, PORT, WORK_DIR
+    )
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
