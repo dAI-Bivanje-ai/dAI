@@ -293,16 +293,38 @@ def validate_filename(filename: str) -> str:
     return filename
 
 def stm32_get_file(logger: DataLogger, filename: str) -> Path:
-    
+    """
+    Iz STM32 prenese eno .BIN datoteko in jo shrani v DATA_DIR.
+
+    Primer:
+        filename = LOG001.BIN
+        shrani v: stm32_data/LOG001.BIN
+    """
+
+    filename = validate_filename(filename)
+
+    logging.info("Requesting file from STM32: %s", filename)
+
+    # STM32 ukaz za prenos datoteke
     logger.ser.write(f"GET {filename}\r\n".encode())
 
-    data = read_until_idle(logger, idle_timeout=2.0)
+    # pri prenosu dat, daljši timeout, ker je dat lahko velika
+    data = read_until_idle(logger, idle_timeout=4.0)
 
+    # če nismo prejeli podatkov ne smemo ustvarjati datoteke
     if not data:
         raise RuntimeError(f"No data received for {filename}")
     
+    # Če STM32 vrne tekstovno napako, zaznamo in ne nadaljujemo s parsiranjem.
+    text_preview = data[:200].decode(errors="ignore")
+    if "ERROR" in text_preview or "FAIL" in text_preview:
+        raise RuntimeError(f"STM32 returned error while reading {filename}: {text_preview.strip()}")
+    
+    # Shranimo v namensko mapo
     path = DATA_DIR / filename
     path.write_bytes(data)
+
+    logging.info("Saved raw STM32 file to: %s", path)
 
     return path
 
