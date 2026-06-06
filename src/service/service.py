@@ -236,6 +236,9 @@ def get_files_from_stm32(port: str, which: str = "all", filename: str | None = N
         files = stm32_list_files(logger)
 
         if which == "all":
+            # popravek - dodano preverjanje ce je files empty
+            if not files:
+                raise RuntimeError("No files on STM32")
             for file in files:
                 stm32_process_file(logger, file)
         elif which == "last":
