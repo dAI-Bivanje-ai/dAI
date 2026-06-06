@@ -11,6 +11,9 @@ import re
 
 # Datoteke shranimo v trenutno delovno pot storitve (WorkingDirectory v systemd).
 WORK_DIR = Path.cwd()
+# shrani v datoteko znotraj working direcotrya
+DATA_DIR = WORK_DIR / "stm32_data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 HOST = "127.0.0.1"
@@ -264,18 +267,26 @@ def stm32_get_file(logger: DataLogger, filename: str) -> Path:
     logger.ser.write(f"GET {filename}\r\n".encode())
 
     data = read_until_idle(logger, idle_timeout=2.0)
+
     if not data:
         raise RuntimeError(f"No data received for {filename}")
     
-    path = WORK_DIR / filename
+    path = DATA_DIR / filename
     path.write_bytes(data)
+
     return path
 
 
 def stm32_process_file(logger: DataLogger, filename: str) -> None:
     path = stm32_get_file(logger, filename)
+
     packets = logger.parse_file(str(path))
-    npz_path = WORK_DIR / (path.stem + ".npz")
+
+    if not packets:
+        raise RuntimeError(f"No valid packets parsed from {filename}")
+
+    npz_path = DATA_DIR / (path.stem + ".npz")
+
     logger.save_data(str(npz_path), packets)
 
 
