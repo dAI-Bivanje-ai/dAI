@@ -39,6 +39,49 @@ def edge_plane_intersection(p1, p2, n, d):
     return None
 
 
+# 12 robov voksla kot pari indeksov oglišč iz voxel_corners()
+# oglišča: index = dx*4 + dy*2 + dz (po vrstnem redu zanke v voxel_corners)
+VOXEL_EDGES = [
+    (0, 1),
+    (2, 3),
+    (4, 5),
+    (6, 7),  # robovi vzdolž z osi (navpicni)
+    (0, 2),
+    (1, 3),
+    (4, 6),
+    (5, 7),  # robovi vzdolž y osi
+    (0, 4),
+    (1, 5),
+    (2, 6),
+    (3, 7),  # robovi vzdolž x osi
+]
+
+
+def voxel_plane_intersection(corners, n, d):
+    """
+    Poišče presečišča ravnine (n,d) z vseh 12 robov voksla.
+    Vrne array oblike (m, 3), m v {0, 1, ..., 6}.
+    """
+    I = []
+
+    for i, j in VOXEL_EDGES:
+        res = edge_plane_intersection(corners[i], corners[j], n, d)
+        if res is None:
+            continue
+
+        pts = res if isinstance(res, list) else [res]
+        for pt in pts:
+            # Dodamo samo, če točka še ni v seznamu
+            if not any(np.linalg.norm(pt - q) < EPS for q in I):
+                I.append(pt)
+            if len(I) == 6:
+                break
+        if len(I) == 6:
+            break
+
+    return np.array(I) if I else np.empty((0, 3))
+
+
 if __name__ == "__main__":
     # Test 1: trikotnik v ravnini XY -> normala mora biti (0,0,1), d=0
     v0 = np.array([0.0, 0.0, 0.0])
@@ -89,3 +132,38 @@ if __name__ == "__main__":
         np.array([1.0, 0.0, 0.0]), np.array([2.0, 0.0, 0.0]), n_xy, d_xy
     )
     print(f"Test 6 — rob v ravnini:    {res}  (pričakovano: obe krajišči)")
+
+    # --- voxel_plane_intersection testi ---
+    print("\n--- voxel_plane_intersection ---")
+    from voxel_grid import VoxelGrid, voxel_corners, build_grid
+    import math
+
+    # Enotski voksel [0,1]^3
+    grid = VoxelGrid(np.array([0.0, 0.0, 0.0]), 1.0, (1, 1, 1))
+    corners = voxel_corners(grid, 0, 0, 0)
+
+    # Test 7: ravnina z=0.5 (sredina voksla) -> 4 točke (kvadrat)
+    n7 = np.array([0.0, 0.0, 1.0])
+    d7 = -0.5
+    I7 = voxel_plane_intersection(corners, n7, d7)
+    print(f"Test 7 — ravnina z=0.5:    {len(I7)} točk  (pričakovano: 4)")
+
+    # Test 8: ravnina z=0 (spodnja stranica voksla) -> 4 točke, ki so ravno na stranici
+    n8 = np.array([0.0, 0.0, 1.0])
+    d8 = 0.0
+    I8 = voxel_plane_intersection(corners, n8, d8)
+    print(
+        f"Test 8 — ravnina z=0:      {len(I8)} točk  (pričakovano: 4, dotik stranice)"
+    )
+
+    # Test 9: ravnina z=2 (nad vokslom) -> 0 točk
+    n9 = np.array([0.0, 0.0, 1.0])
+    d9 = -2.0
+    I9 = voxel_plane_intersection(corners, n9, d9)
+    print(f"Test 9 — ravnina z=2:      {len(I9)} točk  (pričakovano: 0)")
+
+    # Test 10: diagonalna ravnina x+y+z=1.5 -> 3-6 točk
+    n10 = np.array([1.0, 1.0, 1.0]) / math.sqrt(3)
+    d10 = -1.5 / math.sqrt(3)
+    I10 = voxel_plane_intersection(corners, n10, d10)
+    print(f"Test 10 — diag. ravnina:   {len(I10)} točk  (pričakovano: 3-6)")
