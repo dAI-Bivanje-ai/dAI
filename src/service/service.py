@@ -330,16 +330,33 @@ def stm32_get_file(logger: DataLogger, filename: str) -> Path:
 
 
 def stm32_process_file(logger: DataLogger, filename: str) -> None:
+    """
+    Prenese .BIN datoteko iz STM32, jo sparsa in shrani obdelano .npz datoteko.
+
+    Primer:
+        stm32_data/LOG001.BIN
+        stm32_data/LOG001.npz
+    """
+    # preverimo filename
+    filename = validate_filename(filename)
+    # prenesemo .BIN dat iz STM32
     path = stm32_get_file(logger, filename)
 
+    logging.info("Parsing file: %s", path)
+
+    # parsiranje .bin v pakete
     packets = logger.parse_file(str(path))
 
+    # če ni veljavnega paketa ne shranimo praznega .npz
     if not packets:
         raise RuntimeError(f"No valid packets parsed from {filename}")
 
+    # isto ime druga končnica
     npz_path = DATA_DIR / (path.stem + ".npz")
 
+    # shranimo obdelane podatke
     logger.save_data(str(npz_path), packets)
+    logging.info("Saved processed NPZ file to: %s", npz_path)
 
 
 def get_files_from_stm32(port: str, which: str = "all", filename: str | None = None):
