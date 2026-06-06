@@ -7,6 +7,8 @@ import logging
 from src.data_logger.data_logger import DataLogger
 from pathlib import Path
 
+import re
+
 # Datoteke shranimo v trenutno delovno pot storitve (WorkingDirectory v systemd).
 WORK_DIR = Path.cwd()
 
@@ -203,16 +205,61 @@ def read_until_idle(logger: DataLogger, idle_timeout: float = 2.0) -> bytes:
 
 
 def stm32_list_files(logger: DataLogger) -> list[str]:
+    """
+    Pošlje ukaz LIST na STM32 in iz odgovora izlušči imena .BIN datotek.
+
+    STM32 ne vrne samo imen datotek, ampak nekaj takega:
+
+        Listing files...
+        Volume is FAT32
+        LOG001.BIN     2673
+        LOG002.BIN     13527
+
+    Zato ne smemo preverjati samo, če se vrstica konča z ".BIN",
+    ker se vrstica v resnici konča z velikostjo datoteke, npr. 2673.
+    """
+
+    # Pošljemo ukaz LIST na STM32.
     logger.ser.write(b"LIST\r\n")
-    response = read_until_idle(logger, idle_timeout=1.0).decode(errors="ignore")
-    files = []
-    for line in response.splitlines():
-        line = line.strip()
-        if line.endswith(".BIN"):
 
-            files.append(line)
-    return files
+    # read_until_idle bere toliko časa, dokler 2 sekundi ni več novih podatkov.
+    response = read_until_idle(logger, idle_timeout=2.0).decode(errors="ignore")
 
+    # debug izpis v terminalu - journalctl
+    logging.info("STM32 LIST response:\n%s", response)
+
+    # Če STM32 vrne ERROR, potem ne nadaljujemo,
+    if "ERROR" in response:
+        raise RuntimeError(response.strip())
+
+    # iscemo LOG + ena ali več številk + .BIN
+    # Primeri, ki jih najde:
+    #   LOG001.BIN
+    #   LOG227.BIN
+    #   log015.bin
+    #
+    # flags=re.IGNORECASE - ignorira razliko a-A
+    files = re.findall(r"LOG\d+\.BIN", response, flags=re.IGNORECASE)
+
+    # ker je serial izpis lahko cuden ali prekinjen se lahko isto ime pojavi veckrat 
+    # naredimo seznam brez duplikatov in ohranimo vrstni red.
+    unique_files = []
+    seen = set()
+
+    for file in files:
+        # Vsa imena poenotimo na velike črke
+        file = file.upper()
+
+        # Če tega imena še nismo dodali, ga dodamo
+        if file not in seen:
+            seen.add(file)
+            unique_files.append(file)
+
+    # Debug izpis
+    logging.info("Parsed STM32 files: %s", unique_files)
+
+    # Vrne seznam dat. - uporabljajo GET_LAST, GET_ALL in GET_FILE.
+    return unique_files
 
 def stm32_get_file(logger: DataLogger, filename: str) -> Path:
     logger.ser.write(f"GET {filename}\r\n".encode())
