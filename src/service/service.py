@@ -175,8 +175,7 @@ def broadcast(message: str):
 def stm32_open(port: str) -> DataLogger:
     data_logger = DataLogger(port=port)
     data_logger.open()
-    data_logger.ser.write(b"OFF\r\n")
-    time.sleep(1)
+    time.sleep(0.5)
     data_logger.ser.reset_input_buffer()
     return data_logger
 
@@ -209,8 +208,8 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
     files = []
     for line in response.splitlines():
         line = line.strip()
-        # popravek .bin .BIN prepoznava
-        if line.upper().endswith(".BIN"):
+        if line.endswith(".BIN"):
+
             files.append(line)
     return files
 
