@@ -13,6 +13,7 @@ import re
 WORK_DIR = Path.cwd()
 # shrani v datoteko znotraj working direcotrya
 DATA_DIR = WORK_DIR / "stm32_data"
+# mapa se ustvari samodejno
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -263,7 +264,36 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
     # Vrne seznam dat. - uporabljajo GET_LAST, GET_ALL in GET_FILE.
     return unique_files
 
+def validate_filename(filename: str) -> str:
+    """
+    Preveri, da je ime datoteke varno in v pričakovani obliki.
+
+    Dovolimo samo imena tipa:
+        LOG001.BIN
+        LOG23.BIN
+        LOG999.BIN
+
+    Preprečimo nevarne poti:
+        ../../nekaj
+        /etc/passwd
+        test.txt
+    """
+
+    if filename is None:
+        raise RuntimeError("Missing filename")
+
+    # Odstrani presledke in spremeni v uppercase
+    filename = filename.strip().upper()
+
+    # Sprejmemo samo LOG + številke + .BIN.
+    # Prepreči pisanje izven DATA_DIR.
+    if not re.fullmatch(r"LOG\d+\.BIN", filename):
+        raise RuntimeError(f"Invalid filename: {filename}")
+
+    return filename
+
 def stm32_get_file(logger: DataLogger, filename: str) -> Path:
+    
     logger.ser.write(f"GET {filename}\r\n".encode())
 
     data = read_until_idle(logger, idle_timeout=2.0)
