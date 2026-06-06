@@ -226,18 +226,46 @@ def stm32_close(logger: DataLogger) -> None:
 
 
 def read_until_idle(logger: DataLogger, idle_timeout: float = 2.0) -> bytes:
+    """
+    Bere podatke iz STM32, dokler nekaj časa ne pride nič novega.
+
+    Uporablja se pri:
+    - LIST odgovoru,
+    - GET prenosu datoteke,
+    - DELETE odgovoru.
+
+    ROBUSTNOST:
+    - začasno spremenimo timeout,
+    - na koncu vedno obnovimo prejšnji timeout,
+    - če se STM32 odklopi med branjem, vrnemo napako.
+    """
+
+    if logger.ser is None:
+        raise RuntimeError("Serial port is not open")
 
     prev_timeout = logger.ser.timeout
     logger.ser.timeout = idle_timeout
+
     chunks = bytearray()
+
     try:
         while True:
-            chunk = logger.ser.read(4096)
-            if not chunk:  # idle_timeout sekund tišine = konec
+            try:
+                chunk = logger.ser.read(4096)
+            except serial.SerialException as e:
+                raise RuntimeError(f"STM32 disconnected while reading: {e}")
+
+            # Če v timeout sek ne pride kaj novega predpostavimo da je prenos kočan
+            if not chunk:
                 break
+
             chunks.extend(chunk)
+
     finally:
-        logger.ser.timeout = prev_timeout
+        # Timeout vedno nastavimo nazaj, tudi če je prišlo do napake.
+        if logger.ser is not None:
+            logger.ser.timeout = prev_timeout
+
     return bytes(chunks)
 
 
