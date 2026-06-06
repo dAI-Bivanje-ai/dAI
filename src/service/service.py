@@ -178,12 +178,17 @@ def stm32_open(port: str) -> DataLogger:
     data_logger = DataLogger(port=port)
     data_logger.open()
     time.sleep(0.5)
+
+    # Pobrišemo vse stare podatke, ki so že čakali v bufferju.
     data_logger.ser.reset_input_buffer()
+
+    # Damo firmware-u še malo časa, da je port stabilen pred LIST/GET/DELETE.
+    time.sleep(0.5)
     return data_logger
 
 
 def stm32_close(logger: DataLogger) -> None:
-    # logger.ser.write(b"LOG\r\n")  # preklopimo v LOG mode
+    # logger.ser.write(b"LOG\r\n")  # preklopimo v LOG mode - zacne streamanje!
     #time.sleep(0.2)
     logger.close()
 
@@ -208,21 +213,21 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
     """
     Pošlje ukaz LIST na STM32 in iz odgovora izlušči imena .BIN datotek.
 
-    STM32 ne vrne samo imen datotek, ampak nekaj takega:
+    STM32 ne vrne samo imen datotek:
 
         Listing files...
         Volume is FAT32
         LOG001.BIN     2673
         LOG002.BIN     13527
 
-    Zato ne smemo preverjati samo, če se vrstica konča z ".BIN",
-    ker se vrstica v resnici konča z velikostjo datoteke, npr. 2673.
+    Ne preverja konca vrstice z ".BIN",
+    Vrstica se konča z velikostjo datoteke:  2673, 13527
     """
 
     # Pošljemo ukaz LIST na STM32.
     logger.ser.write(b"LIST\r\n")
 
-    # read_until_idle bere toliko časa, dokler 2 sekundi ni več novih podatkov.
+    # read_until_idle bere, dokler 2s ne prejema novih podatkov.
     response = read_until_idle(logger, idle_timeout=2.0).decode(errors="ignore")
 
     # debug izpis v terminalu - journalctl
@@ -232,22 +237,16 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
     if "ERROR" in response:
         raise RuntimeError(response.strip())
 
-    # iscemo LOG + ena ali več številk + .BIN
-    # Primeri, ki jih najde:
-    #   LOG001.BIN
-    #   LOG227.BIN
-    #   log015.bin
-    #
-    # flags=re.IGNORECASE - ignorira razliko a-A
+    # iscemo LOG + 0023 + .BIN
     files = re.findall(r"LOG\d+\.BIN", response, flags=re.IGNORECASE)
 
-    # ker je serial izpis lahko cuden ali prekinjen se lahko isto ime pojavi veckrat 
-    # naredimo seznam brez duplikatov in ohranimo vrstni red.
+    # ker se v serial izpisu lahko isto ime pojavi veckrat 
+    # nardimo seznam brez duplikatov in ohranimo vrstni red.
     unique_files = []
     seen = set()
 
     for file in files:
-        # Vsa imena poenotimo na velike črke
+        # vsa imena na CAPS
         file = file.upper()
 
         # Če tega imena še nismo dodali, ga dodamo
@@ -263,7 +262,11 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
 
 def stm32_get_file(logger: DataLogger, filename: str) -> Path:
     logger.ser.write(f"GET {filename}\r\n".encode())
+
     data = read_until_idle(logger, idle_timeout=2.0)
+    if not data:
+        raise RuntimeError(f"No data received for {filename}")
+    
     path = WORK_DIR / filename
     path.write_bytes(data)
     return path
