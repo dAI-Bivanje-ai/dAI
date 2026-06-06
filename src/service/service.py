@@ -97,15 +97,16 @@ def handle_client(conn, addr):
                     if port is None:
                         response = "FAIL: STM32 is not connected\n"
                     else:
-                        filename = command.split("|", 1)[1]
                         try:
+                            filename = validate_filename(command.split("|", 1)[1])
+
                             with stm32_io_lock:
                                 get_files_from_stm32(
                                     port, which="file", filename=filename
                                 )
-                            response = (
-                                f"File {filename} from STM32 has been processed\n"
-                            )
+
+                            response = f"File {filename} from STM32 has been processed\n"
+
                         except Exception as e:
                             logging.exception("GET_FILE neuspešen")
                             response = f"FAIL: {e}\n"
@@ -205,7 +206,7 @@ def stm32_open(port: str) -> DataLogger:
 
         return data_logger
 
-    except serial.SerialExceptsion as e:
+    except serial.SerialException as e:
         raise RuntimeError(f"Cannot open STM32 serial port {port}: {e}")
 
 
@@ -368,18 +369,23 @@ def stm32_get_file(logger: DataLogger, filename: str) -> Path:
         filename = LOG001.BIN
         shrani v: stm32_data/LOG001.BIN
     """
+    if logger.ser is None:
+        raise RuntimeError("Serial port is not open")
 
     filename = validate_filename(filename)
 
     logging.info("Requesting file from STM32: %s", filename)
 
-    # STM32 ukaz za prenos datoteke
-    logger.ser.write(f"GET {filename}\r\n".encode())
+    try:
+        # STM32 ukaz za prenos datoteke.
+        logger.ser.write(f"GET {filename}\r\n".encode())
+    except serial.SerialException as e:
+        raise RuntimeError(f"Failed to send GET command for {filename}: {e}")
 
     # pri prenosu dat, daljši timeout, ker je dat lahko velika
     data = read_until_idle(logger, idle_timeout=4.0)
 
-    # če nismo prejeli podatkov ne smemo ustvarjati datoteke
+    # če nismo prejeli podatkov ne ustvarimo dat
     if not data:
         raise RuntimeError(f"No data received for {filename}")
     
@@ -477,9 +483,15 @@ def stm32_delete(port: str) -> None:
     logger = stm32_open(port)
 
     try:
+        if logger.ser is None:
+            raise RuntimeError("Serial port is not open")
         logging.info("Sending DELETE command to STM32")
-        logger.ser.write(b"DELETE\r\n")
 
+        try:
+            logger.ser.write(b"DELETE\r\n")
+        except serial.SerialException as e:
+            raise RuntimeError(f"Failed to send DELETE command: {e}")
+        
         # Preberemo odgovor STM32-ja, da vidimo, ali je ukaz uspel.
         response = read_until_idle(logger, idle_timeout=3.0).decode(errors="ignore")
 
