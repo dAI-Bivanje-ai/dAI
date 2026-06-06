@@ -283,21 +283,33 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
     Ne preverja konca vrstice z ".BIN",
     Vrstica se konča z velikostjo datoteke:  2673, 13527
     """
+    if logger.ser is None:
+        raise RuntimeError("Serial port is not open")
+    
+    logging.info("Sending LIST command to STM32")
 
-    # Pošljemo ukaz LIST na STM32.
-    logger.ser.write(b"LIST\r\n")
 
-    # read_until_idle bere, dokler 2s ne prejema novih podatkov.
-    response = read_until_idle(logger, idle_timeout=2.0).decode(errors="ignore")
+    try:
+        # Pošljemo ukaz LIST na STM32.
+        logger.ser.write(b"LIST\r\n")
+    except serial.SerialException as e:
+        raise RuntimeError(f"Failed to send LIST command: {e}")
+
+    # read_until_idle bere, dokler 3s ne prejema novih podatkov.
+    response = read_until_idle(logger, idle_timeout=3.0).decode(errors="ignore")
 
     # debug izpis v terminalu - journalctl
     logging.info("STM32 LIST response:\n%s", response)
 
-    # Če STM32 vrne ERROR, potem ne nadaljujemo,
-    if "ERROR" in response:
+    # Če ni odgovora, ne nadaljujemo
+    if not response.strip():
+        raise RuntimeError("Empty response to LIST command")
+
+    # Če STM32 vrne napako, jo posredujemo TCP klientu kot FAIL.
+    if "ERROR" in response or "FAIL" in response:
         raise RuntimeError(response.strip())
 
-    # iscemo LOG + 0023 + .BIN
+    # iscemo LOG + številke + .BIN
     files = re.findall(r"LOG\d+\.BIN", response, flags=re.IGNORECASE)
 
     # ker se v serial izpisu lahko isto ime pojavi veckrat 
