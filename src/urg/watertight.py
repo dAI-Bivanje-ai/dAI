@@ -26,3 +26,19 @@ def check_watertight(triangles: list[dict]) -> bool:
     print(f"Skupaj robov: {len(edge_count)}")
     print(f"Problematičnih robov (ne == 2): {len(bad)}")
     return len(bad) == 0
+
+
+if __name__ == "__main__":
+    import sys
+    from stl_reader import read_stl
+
+    paths = (
+        sys.argv[1:]
+        if len(sys.argv) > 1
+        else ["models/spodnji.stl", "models/pokrov.stl"]
+    )
+    for path in paths:
+        triangles = read_stl(path)
+        ok = check_watertight(triangles)
+        print(f"Vodotesen: {'DA' if ok else 'NE'}")
+        print()
