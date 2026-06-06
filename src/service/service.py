@@ -356,28 +356,49 @@ def stm32_process_file(logger: DataLogger, filename: str) -> None:
 
     # shranimo obdelane podatke
     logger.save_data(str(npz_path), packets)
+
     logging.info("Saved processed NPZ file to: %s", npz_path)
 
 
 def get_files_from_stm32(port: str, which: str = "all", filename: str | None = None):
+    """
+    Glavna funkcija za GET_ALL, GET_LAST in GET_FILE.
+
+    Najprej odpre STM32, naredi LIST, potem glede na parameter 
+    which - prenese eno ali več datotek.
+    """
+
     logger = stm32_open(port)
+
     try:
+        # vprašamo STM32 katere dat obstajajo
         files = stm32_list_files(logger)
+        # če STM32 nima nobene LOGxxx.BIN dat ne nadaljujemo
+        if not files:
+            raise RuntimeError("No files on STM32")
 
         if which == "all":
-            # popravek - dodano preverjanje ce je files empty
-            if not files:
-                raise RuntimeError("No files on STM32")
+            # GET_ALL - obdelamo vse dat
             for file in files:
                 stm32_process_file(logger, file)
         elif which == "last":
-            if not files:
-                raise RuntimeError("No files on STM32")
+            # GET_LAST - obdelamo zadnjo dat iz seznama
             stm32_process_file(logger, files[-1])
         elif which == "file":
+            # GET_FILE - obdelamo določeno dat
+            # preveri filename
+            filename = validate_filename(filename)
+
+            # Preverimo, če dat. res obstaja na STM32.
+            if filename not in files:
+                raise RuntimeError(f"File {filename} not found on STM32")
+
             stm32_process_file(logger, filename)
+        else:
+            # Če nekdo pokliče napačen mode 
+            raise RuntimeError(f"Invalid transfer mode: {which}")
     finally:
-        # Port vedno zapremo, sicer naslednja operacija ne more odpreti porta.
+        # Port vedno zapremo, drugače naslednji ukaz ob kakšni napaki ne more več odpreti porta
         stm32_close(logger)
 
 
