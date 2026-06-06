@@ -403,11 +403,25 @@ def get_files_from_stm32(port: str, which: str = "all", filename: str | None = N
 
 
 def stm32_delete(port: str) -> None:
+    """
+    Pošlje ukaz DELETE na STM32 in preveri odgovor.
+    """
     logger = stm32_open(port)
+
     try:
+        logging.info("Sending DELETE command to STM32")
         logger.ser.write(b"DELETE\r\n")
-        time.sleep(1)
+
+        # Preberemo odgovor STM32-ja, da vidimo, ali je ukaz uspel.
+        response = read_until_idle(logger, idle_timeout=3.0).decode(errors="ignore")
+
+        logging.info("STM32 DELETE response:\n%s", response)
+
+        if "ERROR" in response or "FAIL" in response:
+            raise RuntimeError(response.strip())
+
     finally:
+        
         stm32_close(logger)
 
 
