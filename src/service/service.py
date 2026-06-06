@@ -2,6 +2,14 @@ import socket
 import threading
 import serial.tools.list_ports
 import time
+import serial
+import logging
+from src.data_logger.data_logger import DataLogger
+from pathlib import Path
+
+# Datoteke shranimo v trenutno delovno pot storitve (WorkingDirectory v systemd).
+WORK_DIR = Path.cwd()
+
 
 HOST = "127.0.0.1"
 PORT = 5000
@@ -9,7 +17,10 @@ STM32_VID = "0483"
 STM32_PID = "5740"
 INTERVAL = 1
 stm32_port: str | None = None
-stm32_lock = threading.Lock()
+stm32_lock = threading.Lock()  # ščiti spremenljivko stm32_port
+
+# sčiti dejansko serijsko komunikacijo — samo ena operacija na STM32 naenkrat.
+stm32_io_lock = threading.Lock()
 
 connected_clients: list = []
 clients_lock = threading.Lock()
@@ -28,68 +39,96 @@ def handle_client(conn, addr):
         with clients_lock:
             connected_clients.append(conn)
 
-        while True:
+        try:
+            while True:
 
-            data = conn.recv(1024)
+                data = conn.recv(1024)
 
-            if not data:
-                break
+                if not data:
+                    break
 
-            command = data.decode().strip()
+                command = data.decode(errors="ignore").strip()
 
-            if command == "STATUS":
-                with stm32_lock:
-                    port = stm32_port
-                if port:
-                    response = "STM32 is connected\n"
+                if command == "STATUS":
+                    with stm32_lock:
+                        port = stm32_port
+                    if port:
+                        response = "STM32 is connected\n"
+                    else:
+                        response = "FAIL: STM32 is not connected\n"
+
+                elif command == "GET_LAST":
+                    with stm32_lock:
+                        port = stm32_port
+                    if port is None:
+                        response = "FAIL: STM32 is not connected\n"
+                    else:
+                        try:
+                            with stm32_io_lock:
+                                get_files_from_stm32(port, which="last")
+                            response = "Last file from STM32 has been processed\n"
+                        except Exception as e:
+                            logging.exception("GET_LAST neuspešen")
+                            response = f"FAIL: {e}\n"
+
+                elif command == "GET_ALL":
+                    with stm32_lock:
+                        port = stm32_port
+                    if port is None:
+                        response = "FAIL: STM32 is not connected\n"
+                    else:
+                        try:
+                            with stm32_io_lock:
+                                get_files_from_stm32(port, which="all")
+                            response = "All files from STM32 are processed\n"
+                        except Exception as e:
+                            logging.exception("GET_ALL neuspešen")
+                            response = f"FAIL: {e}\n"
+
+                elif command.startswith("GET_FILE|"):
+                    with stm32_lock:
+                        port = stm32_port
+                    if port is None:
+                        response = "FAIL: STM32 is not connected\n"
+                    else:
+                        filename = command.split("|", 1)[1]
+                        try:
+                            with stm32_io_lock:
+                                get_files_from_stm32(
+                                    port, which="file", filename=filename
+                                )
+                            response = (
+                                f"File {filename} from STM32 has been processed\n"
+                            )
+                        except Exception as e:
+                            logging.exception("GET_FILE neuspešen")
+                            response = f"FAIL: {e}\n"
+
+                elif command == "DELETE":
+                    with stm32_lock:
+                        port = stm32_port
+                    if port is None:
+                        response = "FAIL: STM32 is not connected\n"
+                    else:
+                        try:
+                            with stm32_io_lock:
+                                stm32_delete(port)
+                            response = "All files on STM32 are deleted\n"
+                        except Exception as e:
+                            logging.exception("DELETE neuspešen")
+                            response = f"FAIL: {e}\n"
+
                 else:
-                    response = "FAIL: STM32 is not connected\n"
+                    response = f"UNKNOWN: {command}\n"
 
-            elif command == "STOP":
-                response = "Stopping service\n"
                 conn.sendall(response.encode())
-                break
-
-            elif command == "GET_LAST":
-                with stm32_lock:
-                    port = stm32_port
-                if port is None:
-                    response = "FAIL: STM32 is not connected\n"
-                else:
-                    response = "pass"  # se ni implementirano
-
-            elif command == "GET_ALL":
-                with stm32_lock:
-                    port = stm32_port
-                if port is None:
-                    response = "FAIL: STM32 is not connected\n"
-                else:
-                    response = "pass"  # se ni implementirano
-
-            elif command.startswith("GET_FILE|"):
-                with stm32_lock:
-                    port = stm32_port
-                if port is None:
-                    response = "FAIL: STM32 is not connected\n"
-                else:
-                    filename = command.split("|", 1)[1]
-                    response = "pass"
-
-            elif command == "DELETE":
-                with stm32_lock:
-                    port = stm32_port
-                if port is None:
-                    response = "FAIL: STM32 is not connected\n"
-                else:
-                    response = "pass"  # se ni implementirano
-            else:
-
-                response = f"UNKNOWN: {command}\n"
-
-            conn.sendall(response.encode())
-
-        with clients_lock:
-            connected_clients.remove(conn)
+        except OSError:
+            pass
+        finally:
+            with clients_lock:
+                # broadcast() je mogoce conn že odstranil kot mrtvega
+                if conn in connected_clients:
+                    connected_clients.remove(conn)
 
 
 # skenira USB porte, najde stm32
@@ -133,7 +172,100 @@ def broadcast(message: str):
             connected_clients.remove(conn)
 
 
+def stm32_open(port: str) -> DataLogger:
+    data_logger = DataLogger(port=port)
+    data_logger.open()
+    data_logger.ser.write(b"OFF\r\n")
+    time.sleep(1)
+    data_logger.ser.reset_input_buffer()
+    return data_logger
+
+
+def stm32_close(logger: DataLogger) -> None:
+    logger.ser.write(b"LOG\r\n")  # preklopimo v LOG mode
+    time.sleep(0.2)
+    logger.close()
+
+
+def read_until_idle(logger: DataLogger, idle_timeout: float = 2.0) -> bytes:
+
+    prev_timeout = logger.ser.timeout
+    logger.ser.timeout = idle_timeout
+    chunks = bytearray()
+    try:
+        while True:
+            chunk = logger.ser.read(4096)
+            if not chunk:  # idle_timeout sekund tišine = konec
+                break
+            chunks.extend(chunk)
+    finally:
+        logger.ser.timeout = prev_timeout
+    return bytes(chunks)
+
+
+def stm32_list_files(logger: DataLogger) -> list[str]:
+    logger.ser.write(b"LIST\r\n")
+    response = read_until_idle(logger, idle_timeout=1.0).decode(errors="ignore")
+    files = []
+    for line in response.splitlines():
+        line = line.strip()
+        # popravek .bin .BIN prepoznava
+        if line.upper().endswith(".BIN"):
+            files.append(line)
+    return files
+
+
+def stm32_get_file(logger: DataLogger, filename: str) -> Path:
+    logger.ser.write(f"GET {filename}\r\n".encode())
+    data = read_until_idle(logger, idle_timeout=2.0)
+    path = WORK_DIR / filename
+    path.write_bytes(data)
+    return path
+
+
+def stm32_process_file(logger: DataLogger, filename: str) -> None:
+    path = stm32_get_file(logger, filename)
+    packets = logger.parse_file(str(path))
+    npz_path = WORK_DIR / (path.stem + ".npz")
+    logger.save_data(str(npz_path), packets)
+
+
+def get_files_from_stm32(port: str, which: str = "all", filename: str | None = None):
+    logger = stm32_open(port)
+    try:
+        files = stm32_list_files(logger)
+
+        if which == "all":
+            for file in files:
+                stm32_process_file(logger, file)
+        elif which == "last":
+            if not files:
+                raise RuntimeError("No files on STM32")
+            stm32_process_file(logger, files[-1])
+        elif which == "file":
+            stm32_process_file(logger, filename)
+    finally:
+        # Port vedno zapremo, sicer naslednja operacija ne more odpreti porta.
+        stm32_close(logger)
+
+
+def stm32_delete(port: str) -> None:
+    logger = stm32_open(port)
+    try:
+        logger.ser.write(b"DELETE\r\n")
+        time.sleep(1)
+    finally:
+        stm32_close(logger)
+
+
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+    logging.info(
+        "Starting SPO STM32 service on %s:%s (WORK_DIR=%s)", HOST, PORT, WORK_DIR
+    )
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
