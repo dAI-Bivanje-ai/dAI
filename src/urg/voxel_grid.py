@@ -50,3 +50,14 @@ def build_grid(
 def voxel_to_world(grid: VoxelGrid, i: int, j: int, k: int) -> np.ndarray:
     """Vrne koordinate središča voksla [i,j,k] v prostoru modela (za risanje/teste)."""
     return grid.origin + (np.array([i, j, k]) + 0.5) * grid.voxel_size
+
+
+def voxel_corners(grid: VoxelGrid, i: int, j: int, k: int) -> np.ndarray:
+    """Vrne 8 oglišč voksla [i,j,k] kot np.ndarray shape (8,3) — za teste presekov."""
+    base = grid.origin + np.array([i, j, k]) * grid.voxel_size
+    corners = []
+    for dx in (0, 1):
+        for dy in (0, 1):
+            for dz in (0, 1):
+                corners.append(base + np.array([dx, dy, dz]) * grid.voxel_size)
+    return np.array(corners)
