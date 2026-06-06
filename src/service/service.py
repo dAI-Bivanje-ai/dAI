@@ -179,16 +179,36 @@ def broadcast(message: str):
 
 
 def stm32_open(port: str) -> DataLogger:
-    data_logger = DataLogger(port=port)
-    data_logger.open()
-    time.sleep(0.5)
+    """
+    Odpre serijski port do STM32.
 
-    # Pobrišemo vse stare podatke, ki so že čakali v bufferju.
-    data_logger.ser.reset_input_buffer()
+    ROBUSTNOST:
+    - če porta ni več, vrnemo jasno napako,
+    - po odprtju malo počakamo, ker se STM32 lahko resetira,
+    - pobrišemo stare podatke iz vhodnega bufferja.
+    """
+    try:
+        data_logger = DataLogger(port=port)
+        data_logger.open()
 
-    # Damo firmware-u še malo časa, da je port stabilen pred LIST/GET/DELETE.
-    time.sleep(0.5)
-    return data_logger
+        # Po odprtju USB serial porta se STM32 lahko resetira,
+        # zato počakamo, da firmware pride v stabilno stanje.
+        time.sleep(0.5)
+
+        if data_logger.ser is None:
+            raise RuntimeError("Serial port was not opened")
+
+        # ROBUSTNOST:
+        # Pobrišemo stare bajte, ki so lahko ostali od prejšnjega streamanja.
+        data_logger.ser.reset_input_buffer()
+
+        # Kratek premor pred LIST/GET/DELETE.
+        time.sleep(0.5)
+
+        return data_logger
+
+    except serial.SerialException as e:
+        raise RuntimeError(f"Cannot open STM32 serial port {port}: {e}")
 
 
 def stm32_close(logger: DataLogger) -> None:
