@@ -191,30 +191,38 @@ def stm32_open(port: str) -> DataLogger:
         data_logger = DataLogger(port=port)
         data_logger.open()
 
-        # Po odprtju USB serial porta se STM32 lahko resetira,
-        # zato počakamo, da firmware pride v stabilno stanje.
+        # počakamo, da se firmware stabilizira
         time.sleep(0.5)
 
         if data_logger.ser is None:
             raise RuntimeError("Serial port was not opened")
 
-        # ROBUSTNOST:
-        # Pobrišemo stare bajte, ki so lahko ostali od prejšnjega streamanja.
+        # Pobrišemo stare bajte, ki so lahko ostali
         data_logger.ser.reset_input_buffer()
 
-        # Kratek premor pred LIST/GET/DELETE.
+        # premor pred LIST/GET/DELETE.
         time.sleep(0.5)
 
         return data_logger
 
-    except serial.SerialException as e:
+    except serial.SerialExceptsion as e:
         raise RuntimeError(f"Cannot open STM32 serial port {port}: {e}")
 
 
 def stm32_close(logger: DataLogger) -> None:
-    # logger.ser.write(b"LOG\r\n")  # preklopimo v LOG mode - zacne streamanje!
-    #time.sleep(0.2)
-    logger.close()
+    """
+    Varno zapre serijski port.
+
+    - port zapremo tudi, če je prej prišlo do napake,
+    - napaka pri zapiranju ne sme sesuti servisa.
+
+    LOG ukaza tukaj NE pošiljamo.
+    LOG bi STM32 prestavil v snemanje/streamanje - Cannot access command mode
+    """
+    try:
+        logger.close()
+    except Exception:
+        logging.exception("Error while closing STM32 serial port")
 
 
 def read_until_idle(logger: DataLogger, idle_timeout: float = 2.0) -> bytes:
