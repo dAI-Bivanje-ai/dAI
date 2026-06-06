@@ -183,8 +183,8 @@ def stm32_open(port: str) -> DataLogger:
 
 
 def stm32_close(logger: DataLogger) -> None:
-    logger.ser.write(b"LOG\r\n")  # preklopimo v LOG mode
-    time.sleep(0.2)
+    # logger.ser.write(b"LOG\r\n")  # preklopimo v LOG mode
+    #time.sleep(0.2)
     logger.close()
 
 
