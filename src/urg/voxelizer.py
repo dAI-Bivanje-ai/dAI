@@ -177,7 +177,8 @@ def voxelize_interior(grid: VoxelGrid) -> None:
     # korak 4: preštevilčenje {1->1, 2->0, 3->1, 4->1, 5->0}
     labels[labels == 2] = 0
     labels[labels == 3] = 1
-    labels[labels == 4] = 1
+    # tu more po algoritmu bit 1, sam mi je bolj logično 0, ker gledamo koliko materiala bi porabili?
+    labels[labels == 4] = 0
     labels[labels == 5] = 0
 
     print(f"  Po preštevilčenju: {int((labels == 1).sum())} snovnih vokslov")
