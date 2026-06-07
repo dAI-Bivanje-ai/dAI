@@ -163,6 +163,46 @@ def polygons_intersect(poly_a, poly_b):
     return hull_area <= max(area_a, area_b) + EPS
 
 
+def on_same_voxel_face(points, corners):
+    """Preveri ali vse točke ležijo na isti ploskvi voksla."""
+    x0, y0, z0 = corners[0]  # 0,0,0
+    x1, y1, z1 = corners[7]  # 1,1,1
+    for axis, val in [(0, x0), (0, x1), (1, y0), (1, y1), (2, z0), (2, z1)]:
+        if all(abs(pt[axis] - val) < EPS for pt in points):
+            return True
+    return False
+
+
+def triangle_intersects_voxel(triangle: dict, grid, i: int, j: int, k: int) -> bool:
+    """Ali se trikotnik seka z vokslom [i,j,k]."""
+    v0, v1, v2 = triangle["v0"], triangle["v1"], triangle["v2"]
+
+    n, d = plane_from_triangle(v0, v1, v2)  # izračunamo ravnino trikotnika
+    corners = voxel_corners(grid, i, j, k)  # dobimo vseh 8 voglišč voksla
+
+    I = voxel_plane_intersection(
+        corners, n, d
+    )  # najde presečišča ravnine z vsemi 12 robovi voksla
+
+    if len(I) < 3:
+        return False
+
+    if len(I) == 4 and on_same_voxel_face(I, corners):  # dotik
+        return False
+
+    origin = corners[0]
+    I_2d = project_to_2d(I, n, origin)  # projeciramo v 2D
+    tri_2d = project_to_2d([v0, v1, v2], n, origin)  # projeciramo v 2D
+
+    hull_I = graham_scan(I_2d)  # vzame konveksno lupino
+    hull_tri = graham_scan(tri_2d)  # vzame konveksno lupino
+
+    if len(hull_I) < 3 or len(hull_tri) < 3:
+        return False
+
+    return polygons_intersect(hull_I, hull_tri)  # dobimo končno odločitev
+
+
 if __name__ == "__main__":
     # Test 1: trikotnik v ravnini XY -> normala mora biti (0,0,1), d=0
     v0 = np.array([0.0, 0.0, 0.0])
