@@ -64,11 +64,17 @@ def voxelize_surface(grid: VoxelGrid, triangles: list) -> None:
 
         # pretvori v razpon vokselnih indeksov
         i_min = max(0, int(np.floor((tri_min[0] - grid.origin[0]) / grid.voxel_size)))
-        i_max = min(nx - 1, int(np.ceil((tri_max[0] - grid.origin[0]) / grid.voxel_size)))
+        i_max = min(
+            nx - 1, int(np.ceil((tri_max[0] - grid.origin[0]) / grid.voxel_size))
+        )
         j_min = max(0, int(np.floor((tri_min[1] - grid.origin[1]) / grid.voxel_size)))
-        j_max = min(ny - 1, int(np.ceil((tri_max[1] - grid.origin[1]) / grid.voxel_size)))
+        j_max = min(
+            ny - 1, int(np.ceil((tri_max[1] - grid.origin[1]) / grid.voxel_size))
+        )
         k_min = max(0, int(np.floor((tri_min[2] - grid.origin[2]) / grid.voxel_size)))
-        k_max = min(nz - 1, int(np.ceil((tri_max[2] - grid.origin[2]) / grid.voxel_size)))
+        k_max = min(
+            nz - 1, int(np.ceil((tri_max[2] - grid.origin[2]) / grid.voxel_size))
+        )
 
         for i in range(i_min, i_max + 1):
             for j in range(j_min, j_max + 1):
@@ -99,7 +105,7 @@ if __name__ == "__main__":
     from voxel_grid import build_grid
 
     triangles = read_stl("models/spodnji.stl")
-    grid = build_grid(triangles, voxel_size=5.0)
+    grid = build_grid(triangles, voxel_size=2.0)  # voxel 2 mm
     voxelize_surface(grid, triangles)
 
     unique, counts = np.unique(grid.labels, return_counts=True)

@@ -34,7 +34,9 @@ def build_grid(
     )  # tu dodamo + 2 * offset_voxels, da je obdano z zrakom
     shape = (int(counts[0]), int(counts[1]), int(counts[2]))
 
-    origin = aabb_min - offset_voxels * voxel_size
+    origin = (
+        aabb_min - offset_voxels * voxel_size - 0.01 * voxel_size
+    )  # dodamo malo offseta, da ni na meji mreze
 
     grid = VoxelGrid(origin, voxel_size, shape)
 
