@@ -87,6 +87,102 @@ def voxelize_surface(grid: VoxelGrid, triangles: list) -> None:
     print(f"Vokselizacija površja: označenih {marked} / {total} vokslov kot snovni")
 
 
+def voxelize_interior(grid: VoxelGrid) -> None:
+    """
+    Loči notranjost modela od zunanje okolice in vrzeli z večkratnim flood fillom.
+    Vmesne oznake: 2=zunanja okolica, 3=zunanja lupina, 4=notranjost, 5=vrzel.
+    Na koncu preštevilči v {0, 1}.
+    Args:
+        grid: VoxelGrid — mreža po voxelize_surface (labels vsebuje {0, 1})
+    Returns:
+        None — modificira grid.labels direktno
+    """
+    labels = grid.labels
+    nx, ny, nz = grid.shape
+
+    # korak 1: zunanja okolica 0 → 2
+    n2 = flood_fill(labels, (0, 0, 0), match=0, new_label=2)
+    print(f"  Zunanja okolica (2): {n2} vokslov")
+
+    # po koraku 1: stene ostanejo 1, zrak okoli sten postane 2, zrak znotraj sten ostane še vedno 0
+
+    # korak 2: najdi voksel z oznako 1 ki meji na 2 -> zunanja lupina 1 -> 3
+    # po koraku 2: 2 -> zunanjost, 3 -> stene modela, 0 -> zrak znotraj modela
+    start_shell = None
+    for i in range(nx):
+        for j in range(ny):
+            for k in range(nz):
+                if labels[i, j, k] == 1:
+                    for di, dj, dk in [
+                        (1, 0, 0),
+                        (-1, 0, 0),
+                        (0, 1, 0),
+                        (0, -1, 0),
+                        (0, 0, 1),
+                        (0, 0, -1),
+                    ]:
+                        ni, nj, nk = i + di, j + dj, k + dk
+                        if 0 <= ni < nx and 0 <= nj < ny and 0 <= nk < nz:
+                            if labels[ni, nj, nk] == 2:
+                                start_shell = (i, j, k)
+                                break
+                if start_shell:
+                    break
+            if start_shell:
+                break
+        if start_shell:
+            break
+
+    n3 = flood_fill(labels, start_shell, match=1, new_label=3)
+    print(f"  Zunanja lupina (3): {n3} vokslov")
+
+    # korak 3: preostale 0-regije -> notranjost (4) ali vrzel (5)
+    # po koraku 3: 2 -> zunanjost, 3 -> stene, 4 -> notranjost, 5 -> vrzeli
+    n4 = n5 = 0
+    for i in range(nx):
+        for j in range(ny):
+            for k in range(nz):
+                if labels[i, j, k] == 0:
+                    filled = flood_fill(labels, (i, j, k), match=0, new_label=4)
+                    borders_shell = False
+                    for ii in range(nx):
+                        for jj in range(ny):
+                            for kk in range(nz):
+                                if labels[ii, jj, kk] == 4:
+                                    for di, dj, dk in [
+                                        (1, 0, 0),
+                                        (-1, 0, 0),
+                                        (0, 1, 0),
+                                        (0, -1, 0),
+                                        (0, 0, 1),
+                                        (0, 0, -1),
+                                    ]:
+                                        ni, nj, nk = ii + di, jj + dj, kk + dk
+                                        if (
+                                            0 <= ni < nx
+                                            and 0 <= nj < ny
+                                            and 0 <= nk < nz
+                                        ):
+                                            if labels[ni, nj, nk] == 3:
+                                                borders_shell = True
+                    if borders_shell:
+                        n4 += filled
+                    else:
+                        flood_fill(labels, (i, j, k), match=4, new_label=5)
+                        n5 += filled
+
+    print(f"  Notranjost (4): {n4} vokslov")
+    print(f"  Vrzeli (5): {n5} vokslov")
+
+    # korak 4: preštevilčenje {1->1, 2->0, 3->1, 4->1, 5->0}
+    labels[labels == 2] = 0
+    labels[labels == 3] = 1
+    labels[labels == 4] = 1
+    labels[labels == 5] = 0
+
+    print(f"  Po preštevilčenju: {int((labels == 1).sum())} snovnih vokslov")
+
+
 if __name__ == "__main__":
     # Test: 3x3x3 mreža, sredinski voksel je ovira (1), ostalo zrak (0)
     # flood fill iz (0,0,0) mora zapolniti vse razen sredinskega
@@ -110,4 +206,10 @@ if __name__ == "__main__":
 
     unique, counts = np.unique(grid.labels, return_counts=True)
     print(f"Oznake po vokselizaciji površja: {dict(zip(unique, counts))}")
-    print(f"  0 = zrak, 1 = snov (površje)")
+
+    print("\n--- voxelize_interior ---")
+    voxelize_interior(grid)
+    unique, counts = np.unique(grid.labels, return_counts=True)
+    print(f"Oznake po koncu: {dict(zip(unique, counts))}")
+    assert set(unique.tolist()) <= {0, 1}, "labels mora vsebovati samo {0, 1}!"
+    print("OK — labels vsebuje samo {0, 1}")
