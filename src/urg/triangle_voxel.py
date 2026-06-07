@@ -1,5 +1,6 @@
 import numpy as np
 from voxel_grid import VoxelGrid, voxel_corners
+from convex_hull import point_side, triangle_area, graham_scan
 
 
 def plane_from_triangle(v0, v1, v2):
@@ -80,6 +81,38 @@ def voxel_plane_intersection(corners, n, d):
             break
 
     return np.array(I) if I else np.empty((0, 3))
+
+
+def project_to_2d(points_3d, n, origin):
+    """
+    Projicira 3D tocke (ki lezijo v ravnini z normalo n) v 2D koordinate.
+    Vrne seznam tuplev (u, v).
+    """
+    # normala ravnine = os, ki kaze ven iz ravnine
+    normal = n / np.linalg.norm(n)
+
+    # pomozni vektor: vzamemo (0,0,1), razen ce je normala skoraj enaka njemu, v tem primeru vzamemo (1,0,0)
+    if abs(np.dot(normal, np.array([0.0, 0.0, 1.0]))) < 1.0 - EPS:
+        helper = np.array([0.0, 0.0, 1.0])
+    else:
+        helper = np.array([1.0, 0.0, 0.0])
+
+    # prva os v ravnini: pravokotna na normalo in helper
+    axis_x = np.cross(helper, normal)
+    axis_x = axis_x / np.linalg.norm(axis_x)
+
+    # druga os v ravnini: pravokotna na normalo in axis_x
+    axis_y = np.cross(normal, axis_x)
+
+    # za vsako tocko: odstejes origin, projiciras na axis_x in axis_y
+    pts_2d = []
+    for p in points_3d:
+        offset = p - origin  # da dobis
+        u = np.dot(offset, axis_x)
+        v = np.dot(offset, axis_y)
+        pts_2d.append((u, v))
+
+    return pts_2d
 
 
 if __name__ == "__main__":
@@ -167,3 +200,20 @@ if __name__ == "__main__":
     d10 = -1.5 / math.sqrt(3)
     I10 = voxel_plane_intersection(corners, n10, d10)
     print(f"Test 10 — diag. ravnina:   {len(I10)} točk  (pričakovano: 3-6)")
+
+    # --- project_to_2d testi ---
+    print("\n--- project_to_2d ---")
+
+    # Test 11: točke v XY ravnini (n=(0,0,1)), origin=(0,0,0)
+    # (1,0,0) mora dati (1,0) ali (0,1), (0,1,0) mora dati (0,1) ali (1,0)
+    pts3d = [
+        np.array([1.0, 0.0, 0.0]),
+        np.array([0.0, 1.0, 0.0]),
+        np.array([0.0, 0.0, 0.0]),
+    ]
+    n11 = np.array([0.0, 0.0, 1.0])
+    origin11 = np.array([0.0, 0.0, 0.0])
+    pts2d = project_to_2d(pts3d, n11, origin11)
+    print(f"Test 11 — točke v XY ravnini:")
+    for p3, p2 in zip(pts3d, pts2d):
+        print(f"  {p3} → {p2}")
