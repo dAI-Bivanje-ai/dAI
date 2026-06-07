@@ -1,6 +1,10 @@
 import numpy as np
 from voxel_grid import VoxelGrid, voxel_corners
-from convex_hull import point_side, triangle_area, graham_scan
+from convex_hull import (
+    point_side,
+    triangle_area,
+    graham_scan,
+)  # pomožne funkcije, ki so že implementirane od prej
 
 
 def plane_from_triangle(v0, v1, v2):
@@ -113,6 +117,16 @@ def project_to_2d(points_3d, n, origin):
         pts_2d.append((u, v))
 
     return pts_2d
+
+
+def polygon_area(poly):
+    """Ploščina konveksnega mnogokotnika — fan triangulacija iz prvega oglišča."""
+    if len(poly) < 3:
+        return 0.0
+    area = 0.0
+    for i in range(1, len(poly) - 1):
+        area += triangle_area(poly[0], poly[i], poly[i + 1])
+    return area
 
 
 if __name__ == "__main__":
