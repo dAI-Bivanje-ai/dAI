@@ -8,7 +8,13 @@ from convex_hull import (
 
 
 def plane_from_triangle(v0, v1, v2):
-    """Vrne (normala n, D) za ravnino Ax+By+Cz+D=0 skozi trikotnik."""
+    """
+    Args:
+        v0, v1, v2: np.ndarray (3,) — oglišča trikotnika
+    Returns:
+        n: np.ndarray (3,) — normalizirana normala ravnine
+        d: float           — skalar iz enačbe n·x + d = 0
+    """
     n = np.cross(v1 - v0, v2 - v0)
     n = n / np.linalg.norm(n)
     d = -np.dot(n, v0)
@@ -20,11 +26,14 @@ EPS = 1e-9
 
 def edge_plane_intersection(p1, p2, n, d):
     """
-    Presek roba (daljice p1-p2) z ravnino (n, d).
-    Vrne:
-      - None         če rob ne seka ravnine (vzporeden ali na isti strani)
-      - np.ndarray   eno presečišče (točka na robu)
-      - [p1, p2]     če rob leži v ravnini (obe krajišči)
+    Args:
+        p1, p2: np.ndarray (3,) — krajišči roba
+        n:      np.ndarray (3,) — normala ravnine
+        d:      float           — skalar ravnine
+    Returns:
+        None            — rob ne seka ravnine
+        np.ndarray (3,) — eno presečišče
+        [p1, p2]        — rob leži v ravnini (obe krajišči)
     """
     denom = np.dot(n, p2 - p1)
     num = -(np.dot(n, p1) + d)
@@ -64,8 +73,12 @@ VOXEL_EDGES = [
 
 def voxel_plane_intersection(corners, n, d):
     """
-    Poišče presečišča ravnine (n,d) z vseh 12 robov voksla.
-    Vrne array oblike (m, 3), m v {0, 1, ..., 6}.
+    Args:
+        corners: np.ndarray (8,3) — oglišča voksla iz voxel_corners()
+        n:       np.ndarray (3,)  — normala ravnine
+        d:       float            — skalar ravnine
+    Returns:
+        np.ndarray (m, 3) — presečišča ravnine z robovi voksla, m v {0..6}
     """
     I = []
 
@@ -89,8 +102,12 @@ def voxel_plane_intersection(corners, n, d):
 
 def project_to_2d(points_3d, n, origin):
     """
-    Projicira 3D tocke (ki lezijo v ravnini z normalo n) v 2D koordinate.
-    Vrne seznam tuplev (u, v).
+    Args:
+        points_3d: list[np.ndarray (3,)] — točke v 3D (ležijo v ravnini z normalo n)
+        n:         np.ndarray (3,)       — normala ravnine
+        origin:    np.ndarray (3,)       — izhodišče 2D koordinatnega sistema (točka na ravnini)
+    Returns:
+        list[tuple(float, float)] — 2D koordinate (u, v) za vsako točko
     """
     # normala ravnine = os, ki kaze ven iz ravnine
     normal = n / np.linalg.norm(n)
@@ -120,7 +137,12 @@ def project_to_2d(points_3d, n, origin):
 
 
 def polygon_area(poly):
-    """Ploščina konveksnega mnogokotnika — fan triangulacija iz prvega oglišča."""
+    """
+    Args:
+        poly: list[tuple(float, float)] — oglišča konveksnega 2D mnogokotnika
+    Returns:
+        float — ploščina (fan triangulacija iz prvega oglišča)
+    """
     if len(poly) < 3:
         return 0.0
     area = 0.0
@@ -130,7 +152,13 @@ def polygon_area(poly):
 
 
 def segments_intersect(a, b, c, d):
-    """Ali se daljici AB in CD pravilno sekata (dotik ne šteje)."""
+    """
+    Args:
+        a, b: tuple(float, float) — krajišči prve daljice
+        c, d: tuple(float, float) — krajišči druge daljice
+    Returns:
+        bool — True če se daljici pravilno sekata (dotik ne šteje)
+    """
     return (
         point_side(a, b, c) * point_side(a, b, d) < 0
         and point_side(c, d, a) * point_side(c, d, b) < 0
@@ -139,8 +167,11 @@ def segments_intersect(a, b, c, d):
 
 def polygons_intersect(poly_a, poly_b):
     """
-    Test sekanja dveh konveksnih 2D mnogokotnikov (lista tuplev (u,v)).
-    Dotik ne šteje. Vrne True ali False.
+    Args:
+        poly_a: list[tuple(float, float)] — oglišča prvega konveksnega 2D mnogokotnika
+        poly_b: list[tuple(float, float)] — oglišča drugega konveksnega 2D mnogokotnika
+    Returns:
+        bool — True če se lika sekata ali eden vsebuje drugega (dotik ne šteje)
     """
     n_a, n_b = len(poly_a), len(poly_b)
 
@@ -164,7 +195,13 @@ def polygons_intersect(poly_a, poly_b):
 
 
 def on_same_voxel_face(points, corners):
-    """Preveri ali vse točke ležijo na isti ploskvi voksla."""
+    """
+    Args:
+        points:  np.ndarray (m, 3) — točke za preverjanje
+        corners: np.ndarray (8, 3) — oglišča voksla iz voxel_corners()
+    Returns:
+        bool — True če vse točke ležijo na isti ploskvi voksla
+    """
     x0, y0, z0 = corners[0]  # 0,0,0
     x1, y1, z1 = corners[7]  # 1,1,1
     for axis, val in [(0, x0), (0, x1), (1, y0), (1, y1), (2, z0), (2, z1)]:
@@ -174,7 +211,14 @@ def on_same_voxel_face(points, corners):
 
 
 def triangle_intersects_voxel(triangle: dict, grid, i: int, j: int, k: int) -> bool:
-    """Ali se trikotnik seka z vokslom [i,j,k]."""
+    """
+    Args:
+        triangle: dict — en trikotnik iz read_stl() {"normal", "v0", "v1", "v2"}
+        grid:     VoxelGrid — vokselska mreža
+        i, j, k:  int — indeksi voksla v mreži
+    Returns:
+        bool — True če se trikotnik dejansko seka z vokslom [i,j,k]
+    """
     v0, v1, v2 = triangle["v0"], triangle["v1"], triangle["v2"]
 
     n, d = plane_from_triangle(v0, v1, v2)  # izračunamo ravnino trikotnika
