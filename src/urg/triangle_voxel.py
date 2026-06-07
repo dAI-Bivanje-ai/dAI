@@ -336,3 +336,47 @@ if __name__ == "__main__":
     print(
         f"Test 15 — povsem ločena:       {polygons_intersect(sq5, sq6)}  (pričakovano: False)"
     )
+
+    # --- triangle_intersects_voxel testi ---
+    print("\n--- triangle_intersects_voxel ---")
+    g = VoxelGrid(np.array([0.0, 0.0, 0.0]), 1.0, (3, 3, 3))
+
+    # Test 16: trikotnik skozi sredino voksla [1,1,1] -> True
+    t16 = {
+        "v0": np.array([1.2, 1.2, 1.5]),
+        "v1": np.array([1.8, 1.2, 1.5]),
+        "v2": np.array([1.5, 1.8, 1.5]),
+    }
+    print(
+        f"Test 16 — skozi sredino:       {triangle_intersects_voxel(t16, g, 1, 1, 1)}  (pričakovano: True)"
+    )
+
+    # Test 17: trikotnik popolnoma nad vokslom [0,0,0]-> False
+    t17 = {
+        "v0": np.array([0.2, 0.2, 2.0]),
+        "v1": np.array([0.8, 0.2, 2.0]),
+        "v2": np.array([0.5, 0.8, 2.0]),
+    }
+    print(
+        f"Test 17 — nad vokslom:         {triangle_intersects_voxel(t17, g, 0, 0, 0)}  (pričakovano: False)"
+    )
+
+    # Test 18: trikotnik se dotakne le zgornje stranice voksla [0,0,0] (z=1)-> False
+    t18 = {
+        "v0": np.array([0.1, 0.1, 1.0]),
+        "v1": np.array([0.9, 0.1, 1.0]),
+        "v2": np.array([0.5, 0.9, 1.0]),
+    }
+    print(
+        f"Test 18 — dotik stranice:      {triangle_intersects_voxel(t18, g, 0, 0, 0)}  (pričakovano: False)"
+    )
+
+    # Test 19: poševni trikotnik znotraj voksla [0,0,0] -> True
+    t19 = {
+        "v0": np.array([0.5, 0.2, 0.2]),
+        "v1": np.array([0.5, 0.8, 0.2]),
+        "v2": np.array([0.5, 0.5, 0.8]),
+    }
+    print(
+        f"Test 19 — poševni znotraj:     {triangle_intersects_voxel(t19, g, 0, 0, 0)}  (pričakovano: True)"
+    )
