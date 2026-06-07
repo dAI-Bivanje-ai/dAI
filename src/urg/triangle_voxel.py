@@ -137,6 +137,32 @@ def segments_intersect(a, b, c, d):
     )
 
 
+def polygons_intersect(poly_a, poly_b):
+    """
+    Test sekanja dveh konveksnih 2D mnogokotnikov (lista tuplev (u,v)).
+    Dotik ne šteje. Vrne True ali False.
+    """
+    n_a, n_b = len(poly_a), len(poly_b)
+
+    # 1. preverimo ali se kateri par robov seka
+    for i in range(n_a):
+        a1, a2 = poly_a[i], poly_a[(i + 1) % n_a]
+        for j in range(n_b):
+            b1, b2 = poly_b[j], poly_b[(j + 1) % n_b]
+            if segments_intersect(a1, a2, b1, b2):
+                return True
+
+    # 2. noben rob se ne seka — preverimo vsebovanost
+    # če je eden znotraj drugega, bo konveksna lupina unije enaka večjemu liku
+    hull = graham_scan(list(poly_a) + list(poly_b))
+    if len(hull) < 3:
+        return False
+    hull_area = polygon_area(hull)
+    area_a = polygon_area(list(poly_a))
+    area_b = polygon_area(list(poly_b))
+    return hull_area <= max(area_a, area_b) + EPS
+
+
 if __name__ == "__main__":
     # Test 1: trikotnik v ravnini XY -> normala mora biti (0,0,1), d=0
     v0 = np.array([0.0, 0.0, 0.0])
@@ -239,3 +265,34 @@ if __name__ == "__main__":
     print(f"Test 11 — točke v XY ravnini:")
     for p3, p2 in zip(pts3d, pts2d):
         print(f"  {p3} → {p2}")
+
+    # --- polygons_intersect testi ---
+    print("\n--- polygons_intersect ---")
+
+    # Test 12: dva kvadrata, ki se prekrivata -> True
+    sq1 = [(0, 0), (2, 0), (2, 2), (0, 2)]
+    sq2 = [(1, 1), (3, 1), (3, 3), (1, 3)]
+    print(
+        f"Test 12 — prekrivata se:      {polygons_intersect(sq1, sq2)}  (pričakovano: True)"
+    )
+
+    # Test 13: kvadrat znotraj trikotnika (vsebovanost) -> True
+    big_tri = [(-5, 0), (5, 0), (0, 5)]
+    small_sq = [(-0.5, 0.5), (0.5, 0.5), (0.5, 1.5), (-0.5, 1.5)]
+    print(
+        f"Test 13 — kvadrat v trikotniku: {polygons_intersect(big_tri, small_sq)}  (pričakovano: True)"
+    )
+
+    # Test 14: dva kvadrata, ki se le dotikata -> False
+    sq3 = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    sq4 = [(1, 0), (2, 0), (2, 1), (1, 1)]
+    print(
+        f"Test 14 — samo dotik:          {polygons_intersect(sq3, sq4)}  (pričakovano: False)"
+    )
+
+    # Test 15: dva kvadrata, ki sta povsem ločena -> False
+    sq5 = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    sq6 = [(3, 3), (4, 3), (4, 4), (3, 4)]
+    print(
+        f"Test 15 — povsem ločena:       {polygons_intersect(sq5, sq6)}  (pričakovano: False)"
+    )
