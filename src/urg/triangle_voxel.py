@@ -129,6 +129,14 @@ def polygon_area(poly):
     return area
 
 
+def segments_intersect(a, b, c, d):
+    """Ali se daljici AB in CD pravilno sekata (dotik ne šteje)."""
+    return (
+        point_side(a, b, c) * point_side(a, b, d) < 0
+        and point_side(c, d, a) * point_side(c, d, b) < 0
+    )
+
+
 if __name__ == "__main__":
     # Test 1: trikotnik v ravnini XY -> normala mora biti (0,0,1), d=0
     v0 = np.array([0.0, 0.0, 0.0])
