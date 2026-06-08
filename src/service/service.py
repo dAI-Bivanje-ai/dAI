@@ -105,7 +105,9 @@ def handle_client(conn, addr):
                                     port, which="file", filename=filename
                                 )
 
-                            response = f"File {filename} from STM32 has been processed\n"
+                            response = (
+                                f"File {filename} from STM32 has been processed\n"
+                            )
 
                         except Exception as e:
                             logging.exception("GET_FILE neuspešen")
@@ -286,9 +288,8 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
     """
     if logger.ser is None:
         raise RuntimeError("Serial port is not open")
-    
-    logging.info("Sending LIST command to STM32")
 
+    logging.info("Sending LIST command to STM32")
 
     try:
         # Pošljemo ukaz LIST na STM32.
@@ -313,7 +314,7 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
     # iscemo LOG + številke + .BIN
     files = re.findall(r"LOG\d+\.BIN", response, flags=re.IGNORECASE)
 
-    # ker se v serial izpisu lahko isto ime pojavi veckrat 
+    # ker se v serial izpisu lahko isto ime pojavi veckrat
     # nardimo seznam brez duplikatov in ohranimo vrstni red.
     unique_files = []
     seen = set()
@@ -332,6 +333,7 @@ def stm32_list_files(logger: DataLogger) -> list[str]:
 
     # Vrne seznam dat. - uporabljajo GET_LAST, GET_ALL in GET_FILE.
     return unique_files
+
 
 def validate_filename(filename: str) -> str:
     """
@@ -361,6 +363,7 @@ def validate_filename(filename: str) -> str:
 
     return filename
 
+
 def stm32_get_file(logger: DataLogger, filename: str) -> Path:
     """
     Iz STM32 prenese eno .BIN datoteko in jo shrani v DATA_DIR.
@@ -388,12 +391,14 @@ def stm32_get_file(logger: DataLogger, filename: str) -> Path:
     # če nismo prejeli podatkov ne ustvarimo dat
     if not data:
         raise RuntimeError(f"No data received for {filename}")
-    
+
     # Če STM32 vrne tekstovno napako, zaznamo in ne nadaljujemo s parsiranjem.
     text_preview = data[:200].decode(errors="ignore")
     if "ERROR" in text_preview or "FAIL" in text_preview:
-        raise RuntimeError(f"STM32 returned error while reading {filename}: {text_preview.strip()}")
-    
+        raise RuntimeError(
+            f"STM32 returned error while reading {filename}: {text_preview.strip()}"
+        )
+
     # Shranimo v namensko mapo
     path = DATA_DIR / filename
     path.write_bytes(data)
@@ -438,7 +443,7 @@ def get_files_from_stm32(port: str, which: str = "all", filename: str | None = N
     """
     Glavna funkcija za GET_ALL, GET_LAST in GET_FILE.
 
-    Najprej odpre STM32, naredi LIST, potem glede na parameter 
+    Najprej odpre STM32, naredi LIST, potem glede na parameter
     which - prenese eno ali več datotek.
     """
 
@@ -469,7 +474,7 @@ def get_files_from_stm32(port: str, which: str = "all", filename: str | None = N
 
             stm32_process_file(logger, filename)
         else:
-            # Če nekdo pokliče napačen mode 
+            # Če nekdo pokliče napačen mode
             raise RuntimeError(f"Invalid transfer mode: {which}")
     finally:
         # Port vedno zapremo, drugače naslednji ukaz ob kakšni napaki ne more več odpreti porta
@@ -491,7 +496,7 @@ def stm32_delete(port: str) -> None:
             logger.ser.write(b"DELETE\r\n")
         except serial.SerialException as e:
             raise RuntimeError(f"Failed to send DELETE command: {e}")
-        
+
         # Preberemo odgovor STM32-ja, da vidimo, ali je ukaz uspel.
         response = read_until_idle(logger, idle_timeout=3.0).decode(errors="ignore")
 
@@ -501,7 +506,7 @@ def stm32_delete(port: str) -> None:
             raise RuntimeError(response.strip())
 
     finally:
-        
+
         stm32_close(logger)
 
 

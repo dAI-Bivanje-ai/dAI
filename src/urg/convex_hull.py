@@ -4,7 +4,7 @@ epsilon = 1e-9
 
 
 def dist(a, b):
-    return np.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
+    return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
 
 def polar_angle(p, origin):
@@ -15,10 +15,10 @@ def vector_angle(prev, current, candidate):
     v1 = (current[0] - prev[0], current[1] - prev[1])
     v2 = (candidate[0] - current[0], candidate[1] - current[1])
     dot = v1[0] * v2[0] + v1[1] * v2[1]
-    mag1 = np.sqrt(v1[0]**2 + v1[1]**2)
-    mag2 = np.sqrt(v2[0]**2 + v2[1]**2)
+    mag1 = np.sqrt(v1[0] ** 2 + v1[1] ** 2)
+    mag2 = np.sqrt(v2[0] ** 2 + v2[1] ** 2)
     if mag1 < epsilon or mag2 < epsilon:
-        return float('inf')
+        return float("inf")
     cos_fi = np.clip(dot / (mag1 * mag2), -1.0, 1.0)
     return np.arccos(cos_fi)
 
@@ -39,8 +39,8 @@ def jarvis(points):
     pts.remove(s0)
 
     s1 = None
-    best_angle = float('inf')
-    best_dist = float('inf')
+    best_angle = float("inf")
+    best_dist = float("inf")
     for p in pts:
         a = polar_angle(p, s0)
         d = dist(p, s0)
@@ -56,7 +56,7 @@ def jarvis(points):
         s_prev = convex_hull[-1]
 
         best = None
-        best_angle = float('inf')
+        best_angle = float("inf")
 
         for point in pts + [s0]:
             ang = vector_angle(s_prev_2, s_prev, point)
@@ -78,10 +78,11 @@ def jarvis(points):
 
 # graham
 
+
 def find_noncollinear(points):
     p0, p1 = points[0], points[1]
     for p2 in points[2:]:
-        cross = (p1[0]-p0[0]) * (p2[1]-p0[1]) - (p1[1]-p0[1]) * (p2[0]-p0[0])
+        cross = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0])
         if abs(cross) > epsilon:
             return p0, p1, p2
     return None
@@ -126,7 +127,9 @@ def graham_scan(points):
     for pk in points_sorted[2:]:
         while len(hull) > 1:
             pi, pj = hull[-2], hull[-1]
-            cross = (pj[0]-pi[0]) * (pk[1]-pi[1]) - (pj[1]-pi[1]) * (pk[0]-pi[0])
+            cross = (pj[0] - pi[0]) * (pk[1] - pi[1]) - (pj[1] - pi[1]) * (
+                pk[0] - pi[0]
+            )
             if cross > epsilon:
                 break
             hull.pop()
@@ -135,7 +138,7 @@ def graham_scan(points):
     while len(hull) > 2:
         pi, pj = hull[-2], hull[-1]
         pk = hull[0]
-        cross = (pj[0]-pi[0]) * (pk[1]-pi[1]) - (pj[1]-pi[1]) * (pk[0]-pi[0])
+        cross = (pj[0] - pi[0]) * (pk[1] - pi[1]) - (pj[1] - pi[1]) * (pk[0] - pi[0])
         if cross > epsilon:
             break
         hull.pop()
@@ -147,7 +150,7 @@ def triangle_area(a, b, c):
     x1, y1 = a
     x2, y2 = b
     x3, y3 = c
-    ploscina = 0.5 * abs(x1*y2 + x2*y3 + x3*y1 - y1*x2 - y2*x3 - y3*x1)
+    ploscina = 0.5 * abs(x1 * y2 + x2 * y3 + x3 * y1 - y1 * x2 - y2 * x3 - y3 * x1)
     return ploscina
 
 
@@ -163,7 +166,7 @@ def triangle_biggest_surface(points, a, b):
 
 
 def point_side(a, b, p):
-    return (b[0]-a[0]) * (p[1]-a[1]) - (b[1]-a[1]) * (p[0]-a[0])
+    return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
 
 
 def find_hull(points, a, b):
@@ -182,7 +185,11 @@ def find_hull(points, a, b):
         if point_side(best_surface, b, p) > 0:
             left2.append(p)
 
-    return find_hull(left1, a, best_surface) + [best_surface] + find_hull(left2, best_surface, b)
+    return (
+        find_hull(left1, a, best_surface)
+        + [best_surface]
+        + find_hull(left2, best_surface, b)
+    )
 
 
 def quickhull(points):

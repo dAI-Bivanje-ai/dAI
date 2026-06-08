@@ -29,7 +29,11 @@ def process(filepath: str) -> float:
 
 
 if __name__ == "__main__":
-    paths = sys.argv[1:] if len(sys.argv) > 1 else ["models/spodnji.stl", "models/pokrov.stl"]
+    paths = (
+        sys.argv[1:]
+        if len(sys.argv) > 1
+        else ["models/spodnji.stl", "models/pokrov.stl"]
+    )
     total = 0.0
     for p in paths:
         total += process(p)

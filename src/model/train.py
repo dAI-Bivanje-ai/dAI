@@ -158,7 +158,7 @@ def train():
         with torch.no_grad():
             # prehod čez vse validation batch-e
             for (acc, gyro), y in val_loader:
-                 # Tudi pri validaciji morajo biti podatki na isti napravi kot model.
+                # Tudi pri validaciji morajo biti podatki na isti napravi kot model.
                 acc = acc.to(device)
                 gyro = gyro.to(device)
                 y = y.to(device)
