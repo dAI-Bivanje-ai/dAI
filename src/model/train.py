@@ -46,6 +46,9 @@ VAL_NPZ = str(ROOT_DIR / "val_dataset.npz")
 
 
 def train():
+    # uporabimo NVIDIA CUDA GPU, drugače CPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Training on: {device}")
 
     # shranjevanje podatkov za kasnejšo vizualizacijo
     history = {"train_loss": [], "train_acc": [], "val_acc": []}
@@ -66,6 +69,8 @@ def train():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
+        num_workers=2,
+        pin_memory=torch.cuda.is_available(),
     )
 
     # pri validaciji ni potrebnega mešanja, ker model samo preverjamo
@@ -73,11 +78,13 @@ def train():
         val_dataset,
         batch_size=BATCH_SIZE,
         shuffle=False,
+        num_workers=2,
+        pin_memory=torch.cuda.is_available(),
     )
 
     # ustvari cnn model
     # NUM_CLASSES = 2 model bo imel 2 outputa - score za delo/telfon
-    model = CNNModel(num_classes=NUM_CLASSES)
+    model = CNNModel(num_classes=NUM_CLASSES).to(device)
 
     # standardna loss funkcija za klasifikacijo
     # primerja output modela z dejanskim label-om
@@ -101,6 +108,12 @@ def train():
 
         # gre čez vse batche učnih podatkov
         for (acc, gyro), y in train_loader:
+
+            # Podatke prestavimo na isto napravo kot model.
+            acc = acc.to(device)
+            gyro = gyro.to(device)
+            y = y.to(device)
+
             # pobriše stare gradiente
             optimizer.zero_grad()
 
@@ -145,6 +158,10 @@ def train():
         with torch.no_grad():
             # prehod čez vse validation batch-e
             for (acc, gyro), y in val_loader:
+                 # Tudi pri validaciji morajo biti podatki na isti napravi kot model.
+                acc = acc.to(device)
+                gyro = gyro.to(device)
+                y = y.to(device)
 
                 # model naredi napoved
                 outputs = model(acc, gyro)

@@ -36,8 +36,5 @@ class PredictionStabilizer:
         if count / len(self.window) < self.min_ratio:
             return None
 
-        if most_common_label == self.last_confirmed:
-            return None
-
         self.last_confirmed = most_common_label
         return most_common_label
