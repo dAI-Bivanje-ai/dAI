@@ -12,7 +12,6 @@ from src.model.cnn_model_mic import CNNModel
 from src.model.dataset_cnn_mic import MicDataset
 from src.preprocessing.dataset_builder_mic import build_dataset_mic
 
-
 # glasba, pogovorsssss
 NUM_CLASSES = 2
 

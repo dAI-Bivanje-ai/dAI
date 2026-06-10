@@ -13,7 +13,6 @@ from src.realtime.preproc_rt import MicRealtimePreprocessor, RealtimePreprocesso
 from src.realtime.serial_reader import LiveSerialReader
 from src.realtime.signal_buffer import SignalBuffer
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
