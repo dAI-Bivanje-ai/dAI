@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from typing import Optional, Tuple, List
 from src.data_logger.data_logger import DataLogger
 
-
 ID_GYRO = 1
 ID_ACC = 2
 ID_MAG = 3
