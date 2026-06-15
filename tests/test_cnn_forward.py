@@ -1,15 +1,13 @@
 import torch
 
-from pathlib import Path
-from src.model.dataset_cnn import IMUDataset
 from src.model.cnn_model import CNNModel
 
 
 def test_cnn_model_forward_shape():
     model = CNNModel(num_classes=5)
 
-    acc = torch.randn(2, 1, 51, 3)
-    gyro = torch.randn(2, 1, 51, 3)
+    acc = torch.randn(2, 3, 51, 3)
+    gyro = torch.randn(2, 3, 51, 3)
 
     output = model(acc, gyro)
 

@@ -3,7 +3,6 @@ import logging
 
 from src.data_logger.data_logger import DataLogger
 
-
 SYNC = b"\xff\xff"
 
 ID_GYRO = 1

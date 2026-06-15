@@ -1,7 +1,6 @@
 import math
 import numpy as np
 
-
 A = 87.7
 A_INV = 1.0 / A
 ONE_PLUS_LN_A = 1.0 + math.log(A)

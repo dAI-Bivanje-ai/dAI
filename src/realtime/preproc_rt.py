@@ -69,7 +69,7 @@ class RealtimePreprocessor:
         gyro_tensor = torch.from_numpy(gyro_spec).float().permute(2, 0, 1).unsqueeze(0)
 
         return acc_tensor, gyro_tensor
-    
+
     def build_sensor_spectrogram(
         self,
         signal: np.ndarray,

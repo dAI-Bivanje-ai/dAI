@@ -14,7 +14,6 @@ from src.preprocessing.stft import (
     compute_spectrograms_1d,
 )
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 

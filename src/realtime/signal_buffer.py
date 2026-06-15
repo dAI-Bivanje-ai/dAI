@@ -2,7 +2,6 @@ from collections import deque
 
 import numpy as np
 
-
 ID_GYRO = 1
 ID_ACC = 2
 

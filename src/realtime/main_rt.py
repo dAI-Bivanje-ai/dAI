@@ -13,7 +13,6 @@ from src.realtime.preproc_rt import MicRealtimePreprocessor, RealtimePreprocesso
 from src.realtime.serial_reader import LiveSerialReader
 from src.realtime.signal_buffer import SignalBuffer
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
@@ -38,7 +37,7 @@ class RealtimeConfig:
     # Dolžina časovnega okna za izračun n ACC in GYRO vzorcev v SignalBuffer
     imu_window_seconds: float = 8.0
 
-    # Dolžina zvočnega segmenta (mora biti enaka kot v treningu!) 
+    # Dolžina zvočnega segmenta (mora biti enaka kot v treningu!)
     mic_segment_seconds: float = 5.0
 
     # Parametri STFT za mikrofon.
@@ -53,7 +52,6 @@ class RealtimeConfig:
     # Rsoluciji int16 v fizikalne enote
     acc_resolution: float = 1e-3
     gyro_resolution: float = 8.75e-3
-
 
     # Buffer se šteje kot pripravljen, ko ima vsaj 95 % pričakovanih vzorcev.
     # Omogoča manjša odstopanja dejanske frekvence, npr. 24 Hz namesto 25 Hz.
@@ -70,6 +68,7 @@ class RealtimeConfig:
 
 
 CONFIG = RealtimeConfig()
+
 
 class PredictionStabilizer:
     """
@@ -124,6 +123,7 @@ class PredictionStabilizer:
 
         self.last_confirmed = most_common_label
         return most_common_label
+
 
 # Pretvorba številčnega izhoda v ime razreda
 IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
@@ -189,7 +189,7 @@ def run_imu_inference(
     """
     if acc_window is None or gyro_window is None:
         return None
-    
+
     # RealtimePreprocessor vrne pripravljene vhode za model - tensorje
     result = preprocessor.process(acc_window, gyro_window)
     if result is None:
@@ -214,11 +214,11 @@ def run_mic_inference(
     Mikrofon ima ločen buffer, ker njegovi podatki niso trojice x,y,z,
     ampak 1D audio vzorci.
     """
-    
+
     # Če ni vzorcev inference preskočimo
     if not mic_buf:
         return None, 0.0
-    
+
     # Deque pretvorimo v NumPy array.
     # Mikrofon je A-law encoded, zato je dtype int8.
     samples = np.array(mic_buf, dtype=np.int8)
@@ -227,7 +227,7 @@ def run_mic_inference(
     # Če je signal tišina ali še ni dovolj dolg, preprocessor vrne None.
     if tensor is None:
         return "TIŠINA", rms
-    
+
     # Model uporabimo samo za napoved, zato gradienti niso potrebni.
     with torch.no_grad():
         output = model(tensor)
@@ -296,7 +296,7 @@ def run() -> None:
         stft_overlap=CONFIG.mic_stft_overlap,
         rms_threshold=CONFIG.mic_rms_threshold,
     )
-    
+
     # Parser iz surovih bajtov naredi strukturirane pakete.
     parser = LivePacketParser()
     # Reader skrbi za serial povezavo s STM32 in vrača bajte
@@ -333,7 +333,6 @@ def run() -> None:
     last_mic_label: str | None = None
     last_rms = 0.0
 
-
     try:
         # prehod po blokih bajtov iz serial porta
         for chunk in reader.read_stream():
@@ -353,7 +352,7 @@ def run() -> None:
                     mic_buf.extend(chunks[ID_MIC])
 
                 packet_count += 1
-                
+
                 # Inference izvajamo na vsak N-ti paket
                 if packet_count % CONFIG.imu_predict_every_n_packets == 0:
 
@@ -373,7 +372,9 @@ def run() -> None:
                 # MIC inference izvajamo redkeje, ker je mikrofonski segment daljši.
                 if packet_count % CONFIG.mic_predict_every_n_packets == 0:
 
-                    mic_label, rms = run_mic_inference(mic_model, mic_preprocessor, mic_buf)
+                    mic_label, rms = run_mic_inference(
+                        mic_model, mic_preprocessor, mic_buf
+                    )
                     last_rms = rms
                     stable_mic_label = mic_stabilizer.update(mic_label)
 
@@ -382,10 +383,10 @@ def run() -> None:
                         print_status(last_imu_label, last_mic_label, last_rms)
 
     except KeyboardInterrupt:
-        # CTRL + C 
+        # CTRL + C
         print("\nUstavljanje...")
     finally:
-        # izpis statisktike parserja 
+        # izpis statisktike parserja
         stats = parser.stats()
         print(
             f"\nPaketi: {stats['valid_packets']} veljavnih / {stats['total_packets']} skupaj"
