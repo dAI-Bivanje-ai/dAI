@@ -15,6 +15,8 @@ from src.realtime.serial_reader import LiveSerialReader
 from src.realtime.signal_buffer import SignalBuffer
 from src.realtime.prediction_stabilizer import PredictionStabilizer
 
+from src.realtime.activity_timer import ActivityTimer
+
 ROOT_DIR = Path(__file__).resolve().parents[2]
 IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
 MIC_MODEL_PATH = ROOT_DIR / "models" / "mic_cnn.pt"
@@ -85,11 +87,14 @@ class GUI:
         self.last_imu = None
         self.last_mic = None
 
+        self.imu_timer = ActivityTimer()
+        self.mic_timer = ActivityTimer()
+
         self.build()
         self.schedule_refresh()
 
     def build(self):
-        self.root.geometry("480x400")
+        self.root.geometry("480x500")
 
         tk.Label(
             self.root,
@@ -99,6 +104,18 @@ class GUI:
             bg=BG,
             pady=14,
         ).pack()
+
+        self.time_var = tk.StringVar(value="Časi aktivnosti:\nIMU: -\nMIC: -")
+
+        self.time_lbl = tk.Label(
+            self.root,
+            textvariable=self.time_var,
+            font=("Menlo", 10),
+            fg="white",
+            bg=BG,
+            justify=tk.LEFT,
+        )
+        self.time_lbl.pack(fill=tk.X, padx=24, pady=(0, 12))
 
         cards = tk.Frame(self.root, bg=BG)
         cards.pack(fill=tk.X, padx=24)
@@ -201,16 +218,27 @@ class GUI:
         elif t == "imu":
             label = state["label"]
             self.last_imu = label
+
+            self.imu_timer.update(label)
+            self.update_time_display()
+
             self.set_imu(label, CLASS_COLORS.get(label, IDLE_COLOR))
             self.update_notif()
 
         elif t == "mic":
             label = state.get("label")
             self.last_mic = label
+
             if label is None:
-                self.set_mic("TIŠINA", IDLE_COLOR)
+                display_label = "TIŠINA"
+                self.set_mic(display_label, IDLE_COLOR)
             else:
+                display_label = label
                 self.set_mic(label, CLASS_COLORS.get(label, IDLE_COLOR))
+
+            self.mic_timer.update(display_label)
+            self.update_time_display()
+
             self.update_notif()
 
         elif t == "error":
@@ -228,6 +256,33 @@ class GUI:
             self.notif_var.set(notif)
         else:
             self.notif_var.set(f"{self.last_imu} + {self.last_mic}")
+
+    def format_seconds(self, seconds: float) -> str:
+        minutes = int(seconds // 60)
+        seconds = int(seconds % 60)
+        return f"{minutes:02d}:{seconds:02d}"
+
+    def update_time_display(self):
+        imu_times = self.imu_timer.get_durations()
+        mic_times = self.mic_timer.get_durations()
+
+        text = "Časi aktivnosti:\n"
+
+        text += "IMU:\n"
+        if imu_times:
+            for label, seconds in imu_times.items():
+                text += f"  {label}: {self.format_seconds(seconds)}\n"
+        else:
+            text += "  -\n"
+
+        text += "MIC:\n"
+        if mic_times:
+            for label, seconds in mic_times.items():
+                text += f"  {label}: {self.format_seconds(seconds)}\n"
+        else:
+            text += "  -\n"
+
+        self.time_var.set(text)
 
     def start_thread(self):
         threading.Thread(target=self.prediction_loop, daemon=True).start()
