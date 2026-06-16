@@ -7,6 +7,9 @@ import time
 import numpy as np
 import torch
 
+import customtkinter as ctk
+import random
+
 from src.model.cnn_model import CNNModel as IMUModel
 from src.model.cnn_model_mic import CNNModel as MicModel
 from src.realtime.packet_parser import LivePacketParser, ID_MIC
@@ -48,15 +51,25 @@ IMU_PREDICT_INTERVAL_S = 3.0
 MIC_PREDICT_INTERVAL_S = 1.0
 
 CLASS_COLORS = {
-    "DELO": "#2ecc71",
-    "TELEFON": "#e74c3c",
-    "GLASBA": "#3498db",
-    "POGOVOR": "#9b59b6",
+    "DELO": "#3ee6b0",      # neon zelena / cyan
+    "TELEFON": "#ff4d5e",   # rdeča
+    "GLASBA": "#4d9fff",    # modra
+    "POGOVOR": "#a855f7",   # vijolična
 }
-IDLE_COLOR = "#95a5a6"
-BG = "#2c3e50"
-CARD_BG = "#34495e"
+IDLE_COLOR = "#8b8ba0"
 
+# Barve za donut / legendo / časovne vrstice 
+DONUT_COLORS = {**CLASS_COLORS, "TIŠINA": "#5a5a72"}
+
+BG = "#07080d"          # skoraj črno ozadje 
+CARD_BG = "#12131c"     # temno modro-črne kartice
+TEXT = "#f5f5fa"        # primarni tekst
+TEXT_SEC = "#8b8ba0"    # sekundarni tekst
+ACCENT = "#a855f7"      # neon vijolični accent (naslov)
+STAR_COLORS = ["#ffffff", "#ffffff", "#d7d7ff", "#c9b8ff", "#a855f7"]
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("dark-blue")
 
 def load_imu_model():
     model = IMUModel(num_classes=2)
