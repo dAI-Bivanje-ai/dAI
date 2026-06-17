@@ -16,6 +16,7 @@ from src.realtime.signal_buffer import SignalBuffer
 from src.realtime.prediction_stabilizer import PredictionStabilizer
 
 from src.realtime.activity_timer import ActivityTimer
+from src.realtime.notifier import notify
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
@@ -86,6 +87,7 @@ class GUI:
         self.queue: queue.Queue = queue.Queue()
         self.last_imu = None
         self.last_mic = None
+        self.last_notif_text = None
 
         self.imu_timer = ActivityTimer()
         self.mic_timer = ActivityTimer()
@@ -246,16 +248,20 @@ class GUI:
 
     def update_notif(self):
         if self.last_imu is None:
-            self.notif_var.set("Čakam na podatke ...")
-            return
-        if self.last_mic is None:
-            self.notif_var.set(f"{self.last_imu} — tišina v ozadju")
-            return
-        notif = NOTIFICATIONS.get((self.last_imu, self.last_mic))
-        if notif:
-            self.notif_var.set(notif)
+            text = "Čakam na podatke ..."
+        elif self.last_mic is None:
+            text = f"{self.last_imu} — tišina v ozadju"
         else:
-            self.notif_var.set(f"{self.last_imu} + {self.last_mic}")
+            notif = NOTIFICATIONS.get((self.last_imu, self.last_mic))
+            text = notif if notif else f"{self.last_imu} + {self.last_mic}"
+
+        self.notif_var.set(text)
+
+        # le ob dejanski spremembi stanja
+        if text != self.last_notif_text and text != "Čakam na podatke ...":
+            notify("dAI", text)
+
+        self.last_notif_text = text
 
     def format_seconds(self, seconds: float) -> str:
         minutes = int(seconds // 60)
