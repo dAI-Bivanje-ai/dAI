@@ -19,5 +19,15 @@ def notify_regular(title: str, message: str, timeout: int) -> None:
     notification.notify(title=title, message=message, timeout=timeout)  # type: ignore
 
 
+def notify(title: str, message: str, timeout: int = 5) -> None:
+    try:
+        if sys.platform == "darwin":
+            notify_macos(title, message)
+        else:
+            notify_regular(title, message)
+    except Exception as e:
+        print(str(e))
+
+
 if __name__ == "__main__":
-    pass
+    notify("test,", "test")
