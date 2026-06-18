@@ -1,3 +1,10 @@
+"""
+3D prikaz trikotniškega STL modela z matplotlib.
+
+Modul izriše trikotnike kot poltransparentne ploskve z obrobami in
+samodejno nastavi razmerja osi glede na obseg modela.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
