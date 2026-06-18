@@ -16,7 +16,7 @@ def compute_volume(grid: VoxelGrid) -> float:
     Args:
         grid: VoxelGrid — mreža po voxelize_interior (labels vsebuje {0, 1})
     Returns:
-        float — volumen v kubičnih mm 
+        float — volumen v kubičnih mm
     """
     solid = int((grid.labels == 1).sum())
     volume = solid * grid.voxel_size**3
