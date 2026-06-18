@@ -1,13 +1,23 @@
+"""
+TCP storitev, ki posreduje med klienti in napravo STM32 prek serijskega porta.
+
+Storitev tece kot systemd servis. V ozadju neprestano spremlja, ali je STM32
+prikljucen, klienti pa se nanjo povezejo prek TCP-ja in posiljajo ukaze
+(STATUS, GET_LAST, GET_ALL, GET_FILE, DELETE). Storitev ukaze prevede v
+serijsko komunikacijo, prenese in obdela .BIN datoteke ter shrani .npz rezultate.
+"""
+
+import logging
+import re
 import socket
 import threading
-import serial.tools.list_ports
 import time
-import serial
-import logging
-from src.data_logger.data_logger import DataLogger
 from pathlib import Path
 
-import re
+import serial
+import serial.tools.list_ports
+
+from src.data_logger.data_logger import DataLogger
 
 # Datoteke shranimo v trenutno delovno pot storitve (WorkingDirectory v systemd).
 WORK_DIR = Path.cwd()
@@ -17,24 +27,37 @@ DATA_DIR = WORK_DIR / "stm32_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# Naslov in vrata, na katerih storitev posdusa TCP klientov (lokalno).
 HOST = "127.0.0.1"
 PORT = 5000
+# USB identifikatorja naprave STM32 (VID in PID) za prepoznavo pravega porta.
 STM32_VID = "0483"
 STM32_PID = "5740"
+# Interval v sekundah, kako pogosto preverjamo prisotnost STM32.
 INTERVAL = 1
+# Trenutno zaznan serijski port STM32 (None, ce naprava ni prikljucena).
 stm32_port: str | None = None
 stm32_lock = threading.Lock()  # ščiti spremenljivko stm32_port
 
 # sčiti dejansko serijsko komunikacijo — samo ena operacija na STM32 naenkrat.
 stm32_io_lock = threading.Lock()
 
+# Seznam vseh trenutno povezanih TCP klientov in lock za varen dostop.
 connected_clients: list = []
 clients_lock = threading.Lock()
 
 
 def handle_client(conn, addr):
+    """
+    Strezi enega TCP klienta v lastnem threadu.
+
+    Klientu najprej sporoci stanje povezave s STM32, nato v zanki bere ukaze,
+    jih izvede prek serijske komunikacije in vrne odgovor. Ob prekinitvi
+    povezave klienta odstrani iz seznama povezanih klientov.
+    """
 
     with conn:
+        # Ob povezavi klientu sporocimo, ali je STM32 trenutno prikljucen.
         with stm32_lock:
             port = stm32_port
         if port is None:
@@ -42,12 +65,14 @@ def handle_client(conn, addr):
         else:
             conn.sendall(b"Connected to SPO STM32 service\n")
 
+        # Klienta dodamo med povezane, da prejema broadcast sporocila.
         with clients_lock:
             connected_clients.append(conn)
 
         try:
             while True:
 
+                # Beremo en ukaz naenkrat; prazen recv pomeni prekinitev povezave.
                 data = conn.recv(1024)
 
                 if not data:
@@ -55,6 +80,7 @@ def handle_client(conn, addr):
 
                 command = data.decode(errors="ignore").strip()
 
+                # STATUS: vrne samo, ali je STM32 trenutno prikljucen.
                 if command == "STATUS":
                     with stm32_lock:
                         port = stm32_port
@@ -63,6 +89,7 @@ def handle_client(conn, addr):
                     else:
                         response = "FAIL: STM32 is not connected\n"
 
+                # GET_LAST: prenese in obdela zadnjo datoteko na STM32.
                 elif command == "GET_LAST":
                     with stm32_lock:
                         port = stm32_port
@@ -77,6 +104,7 @@ def handle_client(conn, addr):
                             logging.exception("GET_LAST neuspešen")
                             response = f"FAIL: {e}\n"
 
+                # GET_ALL: prenese in obdela vse datoteke na STM32.
                 elif command == "GET_ALL":
                     with stm32_lock:
                         port = stm32_port
@@ -91,6 +119,7 @@ def handle_client(conn, addr):
                             logging.exception("GET_ALL neuspešen")
                             response = f"FAIL: {e}\n"
 
+                # GET_FILE|ime: prenese in obdela eno doloceno datoteko.
                 elif command.startswith("GET_FILE|"):
                     with stm32_lock:
                         port = stm32_port
@@ -113,6 +142,7 @@ def handle_client(conn, addr):
                             logging.exception("GET_FILE neuspešen")
                             response = f"FAIL: {e}\n"
 
+                # DELETE: pobrise vse datoteke na STM32.
                 elif command == "DELETE":
                     with stm32_lock:
                         port = stm32_port
@@ -127,6 +157,7 @@ def handle_client(conn, addr):
                             logging.exception("DELETE neuspešen")
                             response = f"FAIL: {e}\n"
 
+                # Vse neprepoznane ukaze klientu vrnemo kot UNKNOWN.
                 else:
                     response = f"UNKNOWN: {command}\n"
 
@@ -135,7 +166,7 @@ def handle_client(conn, addr):
             pass
         finally:
             with clients_lock:
-                # broadcast() je mogoce conn že odstranil kot mrtvega
+                # broadcast() je mogoče conn že odstranil kot mrtvega
                 if conn in connected_clients:
                     connected_clients.remove(conn)
 
@@ -511,6 +542,12 @@ def stm32_delete(port: str) -> None:
 
 
 def main():
+    """
+    Zazene TCP streznik in nadzorni thread za STM32.
+
+    Odpre poslusalni socket, v ozadju zazene stm32_monitor za zaznavanje
+    naprave, nato pa za vsakega povezanega klienta ustvari svoj thread.
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",

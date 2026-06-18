@@ -1,3 +1,11 @@
+"""
+Napovedovanje zvočnega razreda iz mikrofonske seje z naučenim CNN modelom.
+
+Modul sejo razdeli na segmente, tihe segmente prepozna po nizki glasnosti
+(rms), ostale pa predobdela v spektrograme in zanje napove razred (glasba
+ali pogovor).
+"""
+
 from pathlib import Path
 import numpy as np
 import torch
@@ -22,7 +30,15 @@ CLASS_NAMES = {
 
 
 def predict_mic(bin_file):
+    """
+    Napove zvočni razred za vsak segment mikrofonske seje.
 
+    Sejo razdeli na 5-sekundne segmente, tihe segmente označi kot TIŠINA,
+    ostale pa predobdela v spektrograme in skozi naučen model napove razred.
+
+    Args:
+        bin_file: str — pot do .bin seje
+    """
     fvz_mic, sig_mic = load_session_mic(bin_file)
 
     samples_per_seg = int(5.0 * fvz_mic)

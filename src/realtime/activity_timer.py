@@ -1,3 +1,10 @@
+"""
+Beleženje časa posameznih aktivnosti v realtime sistemu.
+
+Modul vsebuje razred ActivityTimer, ki na podlagi zaporedja stabiliziranih
+oznak meri, koliko časa je trajala vsaka aktivnost, in vrne skupne čase.
+"""
+
 import time
 from collections import defaultdict
 
@@ -8,6 +15,9 @@ class ActivityTimer:
     """
 
     def __init__(self) -> None:
+        """
+        Inicializira prazen števec časa brez trenutne aktivnosti.
+        """
         self.current_label: str | None = None
         self.last_change_time: float | None = None
         self.durations: dict[str, float] = defaultdict(float)

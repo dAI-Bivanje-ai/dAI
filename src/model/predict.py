@@ -1,3 +1,10 @@
+"""
+Napovedovanje aktivnosti iz IMU seje z naučenim CNN modelom.
+
+Modul predobdela eno .bin sejo v spektrograme, naloži naučen IMU model in
+za vsak segment izpiše napovedano aktivnost skupaj s časovno oznako.
+"""
+
 from pathlib import Path
 import numpy as np
 import torch

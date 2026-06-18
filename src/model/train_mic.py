@@ -1,3 +1,11 @@
+"""
+Učenje mikrofonskega CNN modela za klasifikacijo zvoka (glasba / pogovor).
+
+Modul iz seznama sej zgradi učni in validacijski dataset, izvede učno zanko
+čez več epoh, sproti beleži izgubo in točnost ter na koncu shrani naučene
+uteži (skupaj z normalizacijskimi parametri) in zgodovino učenja.
+"""
+
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -28,19 +36,26 @@ TRAIN_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_06.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_07.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_08.bin"), 0),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_11.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_03.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_05.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_06.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_07.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_09.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_10.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_11.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_12.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_13.bin"), 1),
 ]
 
 VAL_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_03.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_04.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_03.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_09.bin"), 0),
+    (str(ROOT_DIR / "podatki/mic_podatki/glasba_10.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_04.bin"), 1),
+    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_14.bin"), 1),
 ]
 
 TRAIN_NPZ = str(ROOT_DIR / "train_dataset_mic.npz")
@@ -48,7 +63,14 @@ VAL_NPZ = str(ROOT_DIR / "val_dataset_mic.npz")
 
 
 def train():
+    """
+    Nauči mikrofonski CNN model in shrani uteži ter zgodovino učenja.
 
+    Zgradi dataset iz TRAIN_FILES in VAL_FILES, izvede učno zanko čez EPOCHS
+    epoh, sproti izpisuje izgubo in točnost ter na koncu shrani model in
+    normalizacijska parametra (log_min, log_max) v models/mic_cnn.pt,
+    zgodovino pa v models/history_mic.json.
+    """
     X_mic_train, y_train, log_min, log_max = build_dataset_mic(TRAIN_FILES)
     X_mic_val, y_val, _, _ = build_dataset_mic(VAL_FILES)
 

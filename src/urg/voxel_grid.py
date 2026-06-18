@@ -1,3 +1,11 @@
+"""
+Podatkovna struktura vokselske mreže in pomožne funkcije zanjo.
+
+Modul vsebuje razred VoxelGrid (hrani izhodišče, velikost voksla, obliko
+in oznake) ter funkcije za gradnjo prazne mreže iz trikotnikov in
+pretvorbo med vokselskimi indeksi in koordinatami v prostoru modela.
+"""
+
 import numpy as np
 
 

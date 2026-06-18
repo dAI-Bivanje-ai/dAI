@@ -1,3 +1,11 @@
+"""
+Učenje IMU CNN modela za klasifikacijo aktivnosti (delo / telefon).
+
+Modul iz seznama sej zgradi učni in validacijski dataset, izvede učno zanko
+čez več epoh, sproti beleži izgubo in točnost ter na koncu shrani naučene
+uteži in zgodovino učenja.
+"""
+
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -45,6 +53,13 @@ VAL_NPZ = str(ROOT_DIR / "val_dataset.npz")
 
 
 def train():
+    """
+    Nauči IMU CNN model in shrani uteži ter zgodovino učenja.
+
+    Zgradi dataset iz TRAIN_FILES in VAL_FILES, izvede učno zanko čez EPOCHS
+    epoh, sproti izpisuje izgubo in točnost ter na koncu shrani model v
+    models/imu_cnn.pt in zgodovino v models/history.json.
+    """
     # uporabimo NVIDIA CUDA GPU, drugače CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training on: {device}")

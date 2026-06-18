@@ -1,9 +1,18 @@
+"""
+Skripta za prikaz STFT spektrograma iz mikrofonskega signala.
+
+Prebere en .bin posnetek, iz njega sestavi mikrofonski signal, ga A-law
+dekodira, razdeli na časovna okna in za vsako okno izračuna STFT. Rezultat
+prikaže kot spektrogram v decibelski skali (frekvenca proti času).
+"""
+
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
 from src.data_logger.data_logger import DataLogger
 
+# Korenski direktorij projekta (dve mapi nad to datoteko).
 ROOT_DIR = Path(__file__).resolve().parents[2]
 from src.visualization.data_visualizer import pripravi_pakete, sestavi_podatke_mic
 from src.preprocessing.windower import window_signal_seconds
@@ -18,6 +27,7 @@ FREQ_RES = MIC_FVZ / FFT_W  # frekvenčna resolucija [Hz/bin] = 31.25 Hz
 TIME_STEP = (FFT_W * (1 - FFT_OVERLAP)) / MIC_FVZ  # časovni korak [s] = 16 ms
 
 if __name__ == "__main__":
+    # branje in parsanje binarne datoteke ter priprava paketov
     logger = DataLogger()
     packets = logger.parse_file(str(ROOT_DIR / "pogovor_04.bin"))
     paketi = pripravi_pakete(packets)
@@ -42,6 +52,7 @@ if __name__ == "__main__":
     # log-power v dB za vizualizacijo, transponiramo za imshow (freq × čas)
     S_db = 10 * np.log10(S.T + 1e-10)
 
+    # prikaz spektrograma: čas na x osi, frekvenca na y osi
     plt.figure(figsize=(14, 6))
     plt.imshow(
         S_db,
@@ -52,6 +63,6 @@ if __name__ == "__main__":
     plt.colorbar(label="Moč [dB]")
     plt.xlabel("Čas [s]")
     plt.ylabel("Frekvenca [Hz]")
-    plt.title("Mikrofon — STFT spektrogram")
+    plt.title("Mikrofon STFT spektrogram")
     plt.tight_layout()
     plt.show()

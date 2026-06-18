@@ -1,3 +1,11 @@
+"""
+Glavna realtime zanka za klasifikacijo aktivnosti iz STM32 toka (konzola).
+
+Modul poveže celotno verigo: branje serijskega toka, razčlenjevanje paketov,
+polnjenje bufferjev, periodično inferenco IMU in mikrofonskega modela,
+stabilizacijo napovedi in izpis stanja s pripadajočimi opozorili.
+"""
+
 import logging
 from collections import Counter, deque
 from dataclasses import dataclass
@@ -8,7 +16,7 @@ import torch
 
 from src.model.cnn_model import CNNModel as IMUModel
 from src.model.cnn_model_mic import CNNModel as MicModel
-from src.realtime.packet_parser import LivePacketParser, ID_ACC, ID_GYRO, ID_MIC
+from src.realtime.packet_parser import ID_ACC, ID_GYRO, ID_MIC, LivePacketParser
 from src.realtime.preproc_rt import MicRealtimePreprocessor, RealtimePreprocessor
 from src.realtime.serial_reader import LiveSerialReader
 from src.realtime.signal_buffer import SignalBuffer
@@ -79,6 +87,13 @@ class PredictionStabilizer:
     """
 
     def __init__(self, window_size: int, min_ratio: float) -> None:
+        """
+        Inicializira stabilizator.
+
+        Args:
+            window_size: int — velikost drsečega okna zadnjih napovedi
+            min_ratio: float — najmanjši delež enakih napovedi za potrditev
+        """
         # Sliding window zadnjih N predictionov.
         self.window: deque[str] = deque(maxlen=window_size)
 
