@@ -1,3 +1,11 @@
+"""
+Preprost prikaz poteka učenja IMU modela.
+
+Skripta naloži zgodovino učenja iz models/history.json in izriše graf
+izgube ter točnosti (učne in validacijske) po epohah, nato pa ga shrani in
+prikaže.
+"""
+
 import json
 from pathlib import Path
 import matplotlib.pyplot as plt

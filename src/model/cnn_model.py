@@ -1,3 +1,11 @@
+"""
+CNN model za klasifikacijo aktivnosti iz IMU spektrogramov.
+
+Model ima dve ločeni veji (ACC in GYRO), ki vsaka iz svojega spektrograma
+izluščita značilke, nato pa združene značilke klasifikator razvrsti v eno
+od aktivnosti.
+"""
+
 import torch
 import torch.nn as nn
 
@@ -11,6 +19,9 @@ class SensorBranch(nn.Module):
     """
 
     def __init__(self):
+        """
+        Sestavi konvolucijsko mrežo ene veje.
+        """
         super().__init__()
 
         self.network = nn.Sequential(
