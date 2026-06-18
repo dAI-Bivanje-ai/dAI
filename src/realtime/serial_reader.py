@@ -1,3 +1,11 @@
+"""
+Realtime serijska povezava z napravo STM32.
+
+Modul vsebuje LiveSerialReader, ki samodejno poišče STM32 napravo, vzpostavi
+serijsko povezavo, zažene tok podatkov in neprekinjeno bere surove bajte.
+Ob odklopu naprave ne pade, ampak čaka na ponovni priklop.
+"""
+
 import logging
 import time
 from collections.abc import Iterator
@@ -28,6 +36,12 @@ class LiveSerialReader:
     """
 
     def __init__(self, baudrate: int = DEFAULT_BAUDRATE) -> None:
+        """
+        Inicializira reader brez aktivne povezave.
+
+        Args:
+            baudrate: int — hitrost serijske povezave (privzeto 115200)
+        """
         self.baudrate = baudrate
         self.port: str | None = None
         self.connection: serial.Serial | None = None
@@ -199,6 +213,9 @@ class LiveSerialReader:
 
 
 def main() -> None:
+    """
+    Samostojni preizkus readerja: bere tok in izpisuje velikost blokov.
+    """
     # konfiguracija loggerja
     logging.basicConfig(
         level=logging.INFO,

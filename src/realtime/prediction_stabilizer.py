@@ -1,3 +1,11 @@
+"""
+Stabilizacija realtime napovedi modela.
+
+Modul vsebuje razred PredictionStabilizer, ki z drsečim oknom zadnjih N
+napovedi prepreči utripanje rezultata in potrdi nov razred šele, ko je
+dovolj zanesljiv.
+"""
+
 from collections import Counter, deque
 
 
@@ -10,6 +18,13 @@ class PredictionStabilizer:
     """
 
     def __init__(self, window_size: int, min_ratio: float) -> None:
+        """
+        Inicializira stabilizator.
+
+        Args:
+            window_size: int — velikost drsečega okna zadnjih napovedi
+            min_ratio: float — najmanjši delež enakih napovedi za potrditev
+        """
         self.window: deque[str] = deque(maxlen=window_size)
         self.min_ratio = min_ratio
         self.last_confirmed: str | None = None
