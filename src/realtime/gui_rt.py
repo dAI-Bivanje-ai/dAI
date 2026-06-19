@@ -57,32 +57,32 @@ ACC_RESOLUTION = 1e-3
 GYRO_RESOLUTION = 8.75e-3
 MIC_MAXLEN = int(MIC_SEGMENT_SECONDS * MIC_SAMPLE_RATE)
 
-
 # Kako pogosto najmanj izvedemo posamezno napoved (v sekundah)
 IMU_PREDICT_INTERVAL_S = 3.0
 MIC_PREDICT_INTERVAL_S = 1.0
 
 # Barve za posamezne razrede in osnovna paleta vmesnika
 CLASS_COLORS = {
-    "DELO": "#3ee6b0",      # neon zelena / cyan
-    "TELEFON": "#ff4d5e",   # rdeča
-    "GLASBA": "#4d9fff",    # modra
-    "POGOVOR": "#a855f7",   # vijolična
+    "DELO": "#3ee6b0",  # neon zelena / cyan
+    "TELEFON": "#ff4d5e",  # rdeča
+    "GLASBA": "#4d9fff",  # modra
+    "POGOVOR": "#a855f7",  # vijolična
 }
 IDLE_COLOR = "#8b8ba0"
 
 # Barve za donut / legendo / časovne vrstice 
 DONUT_COLORS = {**CLASS_COLORS, "TIŠINA": "#5a5a72"}
 
-BG = "#07080d"          # skoraj črno ozadje 
-CARD_BG = "#12131c"     # temno modro-črne kartice
-TEXT = "#f5f5fa"        # primarni tekst
-TEXT_SEC = "#8b8ba0"    # sekundarni tekst
-ACCENT = "#a855f7"      # neon vijolični accent (naslov)
+BG = "#07080d"  # skoraj črno ozadje
+CARD_BG = "#12131c"  # temno modro-črne kartice
+TEXT = "#f5f5fa"  # primarni tekst
+TEXT_SEC = "#8b8ba0"  # sekundarni tekst
+ACCENT = "#a855f7"  # neon vijolični accent (naslov)
 STAR_COLORS = ["#ffffff", "#ffffff", "#d7d7ff", "#c9b8ff", "#a855f7"]
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
+
 
 def load_imu_model():
     """
@@ -147,7 +147,7 @@ class GUI:
 
         self.build()
         self.schedule_refresh()
-    
+
     def _make_fonts(self):
         # geometrijski sans (Avenir Next) za besedilo
         # Menlo (mono) samo za poravnane številčne stolpce.
@@ -158,7 +158,6 @@ class GUI:
         self.font_label = ctk.CTkFont(family=sans, size=13)
         self.font_small = ctk.CTkFont(family=sans, size=12)
         self.font_mono = ctk.CTkFont(family="Menlo", size=12)
-
 
     def build(self):
         W, H = self.WIN_W, self.WIN_H
@@ -287,10 +286,6 @@ class GUI:
         # prvi izris donuta in tabele časov
         self.update_time_display()
 
-        
-
-        
-
     def make_card(self, title):
         """ 
         Ustvari dashboard kartico;
@@ -309,7 +304,7 @@ class GUI:
         )
         underline.pack(fill="x", padx=34, pady=(0, 18))
         return frame, value, underline
-    
+
     def _draw_starfield(self, W, H):
         self._stars = []
         for _ in range(random.randint(40, 60)):
@@ -338,10 +333,6 @@ class GUI:
         """
         self.imu_label_var.set(text)
         self.imu_lbl.configure(fg=color)
-
-    def set_imu(self, text, color):
-        self.imu_value_lbl.configure(text=text, text_color=color)
-        self.imu_underline.configure(fg_color=color)
 
     def set_mic(self, text, color):
         self.mic_value_lbl.configure(text=text, text_color=color)
@@ -464,7 +455,7 @@ class GUI:
 
         self._draw_donut(combined)
         self._render_times(imu_times, mic_times)
-    
+
     def _draw_donut(self, combined):
         c = self.donut_canvas
         c.delete("all")
@@ -674,7 +665,6 @@ class GUI:
 
 
 def run():
-
     root = ctk.CTk()
     gui = GUI(root)
     gui.start_thread()
