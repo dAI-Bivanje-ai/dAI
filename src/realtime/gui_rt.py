@@ -25,6 +25,7 @@ from src.realtime.signal_buffer import SignalBuffer
 from src.realtime.prediction_stabilizer import PredictionStabilizer
 
 from src.realtime.activity_timer import ActivityTimer
+from src.realtime.activity_viewer import ActivityViewer
 from src.realtime.notifier import notify
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -125,6 +126,10 @@ class GUI:
         self.imu_timer = ActivityTimer()
         self.mic_timer = ActivityTimer()
 
+        # Spremljevalnik aktivne aplikacije (produktivno / neproduktivno)
+        self.last_activity = None
+        self.activity_viewer = ActivityViewer()
+
         self.build()
         self.schedule_refresh()
 
@@ -210,6 +215,16 @@ class GUI:
             wraplength=400,
             justify=tk.CENTER,
         ).pack(pady=(4, 0))
+
+        # Trenutna aktivna aplikacija in njena kategorija
+        self.activity_var = tk.StringVar(value="Aktivnost: -")
+        tk.Label(
+            notif_frame,
+            textvariable=self.activity_var,
+            font=("Menlo", 10),
+            fg=IDLE_COLOR,
+            bg=CARD_BG,
+        ).pack(pady=(8, 0))
 
         # Stanje povezave z napravo (na dnu okna)
         self.conn_var = tk.StringVar(value="Ni povezave")
@@ -314,6 +329,11 @@ class GUI:
 
             self.update_notif()
 
+        elif t == "activity":
+            self.last_activity = state
+            app = state.get("app") or "?"
+            self.activity_var.set(f"Aktivnost: {app} · {state['label']}")
+
         elif t == "error":
             self.notif_var.set(f"Napaka: {state['msg']}")
 
@@ -375,9 +395,18 @@ class GUI:
 
     def start_thread(self):
         """
-        Zažene inferenco v ločeni daemon niti.
+        Zažene inferenco in spremljanje aktivnosti v ločenih daemon nitih.
         """
         threading.Thread(target=self.prediction_loop, daemon=True).start()
+        threading.Thread(target=self.activity_loop, daemon=True).start()
+
+    def activity_loop(self):
+        """
+        Delovna nit: bere dogodke o spremembi aktivne aplikacije in jih
+        pošilja v GUI nit prek vrste (queue).
+        """
+        for event in self.activity_viewer.run():
+            self.queue.put({"type": "activity", **event})
 
     def prediction_loop(self):
         """
