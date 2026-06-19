@@ -54,7 +54,6 @@ ACC_RESOLUTION = 1e-3
 GYRO_RESOLUTION = 8.75e-3
 MIC_MAXLEN = int(MIC_SEGMENT_SECONDS * MIC_SAMPLE_RATE)
 
-
 # Kako pogosto najmanj izvedemo posamezno napoved (v sekundah)
 IMU_PREDICT_INTERVAL_S = 3.0
 MIC_PREDICT_INTERVAL_S = 1.0
