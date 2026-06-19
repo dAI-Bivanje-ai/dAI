@@ -89,11 +89,13 @@ def load_mic_model():
 class GUI:
 
     REFRESH_RATE_MS = 200
+    WIN_W = 660
+    WIN_H = 792
 
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("dAI")
-        self.root.configure(bg=BG)
+        self.root.configure(fg_color=BG)
         self.root.resizable(False, False)
 
         self.queue: queue.Queue = queue.Queue()
@@ -105,6 +107,18 @@ class GUI:
 
         self.build()
         self.schedule_refresh()
+    
+    def _make_fonts(self):
+        # geometrijski sans (Avenir Next) za besedilo
+        # Menlo (mono) samo za poravnane številčne stolpce.
+        sans = "Avenir Next"
+        self.font_card_title = ctk.CTkFont(family=sans, size=12, weight="bold")
+        self.font_value = ctk.CTkFont(family=sans, size=34, weight="bold")
+        self.font_status = ctk.CTkFont(family=sans, size=14)
+        self.font_label = ctk.CTkFont(family=sans, size=13)
+        self.font_small = ctk.CTkFont(family=sans, size=12)
+        self.font_mono = ctk.CTkFont(family="Menlo", size=12)
+
 
     def build(self):
         self.root.geometry("480x500")
