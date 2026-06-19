@@ -1,10 +1,32 @@
+"""
+Branje STL datotek v ASCII in binarni obliki.
+
+Modul samodejno zazna obliko datoteke in vrne trikotnike kot seznam
+slovarjev z normalo in tremi oglišči. Uporablja ga celotna veriga
+vokselizacije kot vhodni korak.
+"""
+
 import struct
 import numpy as np
 import sys
 
 
 def read_ascii(f):
+    """
+    Prebere trikotnike iz ASCII STL datoteke.
 
+    Razčleni besedilne žetone in iz vsakega bloka facet izlušči normalo
+    in tri oglišča.
+
+    Args:
+        f: file — odprta binarna datoteka, pomaknjena na začetek
+
+    Returns:
+        list[dict] — trikotniki {"normal", "v0", "v1", "v2"}
+
+    Raises:
+        ValueError — če datoteka ni v ASCII STL obliki
+    """
     tokens = f.read().decode("ascii").split()
 
     if tokens[0].lower() != "solid":
@@ -40,6 +62,18 @@ def read_ascii(f):
 
 
 def read_binary(f) -> list[dict]:
+    """
+    Prebere trikotnike iz binarne STL datoteke.
+
+    Preskoči 80-bajtno glavo, prebere število trikotnikov in nato vsak
+    50-bajtni zapis razpakira v normalo in tri oglišča.
+
+    Args:
+        f: file — odprta binarna datoteka, pomaknjena na začetek
+
+    Returns:
+        list[dict] — trikotniki {"normal", "v0", "v1", "v2"}
+    """
     header = f.read(80)
     count = struct.unpack("<I", f.read(4))[0]  # tu mamo število trikotnikov
 

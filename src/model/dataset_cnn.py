@@ -1,3 +1,11 @@
+"""
+PyTorch dataset za IMU spektrograme (ACC in GYRO).
+
+Modul naloži predobdelane spektrograme in oznake iz .npz datoteke ter jih
+pretvori v PyTorch tensorje v obliki, primerni za CNN model z dvema
+vhodoma.
+"""
+
 import numpy as np
 import torch
 from torch.utils.data import Dataset

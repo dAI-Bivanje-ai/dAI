@@ -1,3 +1,10 @@
+"""
+Izračun volumna materiala iz vokselske mreže.
+
+Modul prešteje snovne voksle (oznaka 1) in jih pomnoži s kubom stranice
+voksla, da dobi približni volumen modela.
+"""
+
 from voxel_grid import VoxelGrid
 
 
@@ -9,7 +16,7 @@ def compute_volume(grid: VoxelGrid) -> float:
     Args:
         grid: VoxelGrid — mreža po voxelize_interior (labels vsebuje {0, 1})
     Returns:
-        float — volumen v mm³
+        float — volumen v kubičnih mm
     """
     solid = int((grid.labels == 1).sum())
     volume = solid * grid.voxel_size**3

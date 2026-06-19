@@ -1,3 +1,11 @@
+"""
+Drseči buffer za realtime IMU podatke (ACC in GYRO).
+
+Modul vsebuje SignalBuffer, ki iz paketov pobere ACC in GYRO vzorce, jih
+pretvori v fizikalne enote in hrani zadnjih N vzorcev. Ko je dovolj poln,
+vrne okni oblike (N, 3) za nadaljnjo obdelavo.
+"""
+
 from collections import deque
 
 import numpy as np
@@ -113,6 +121,12 @@ class SignalBuffer:
             )
 
     def is_ready(self) -> bool:
+        """
+        Preveri, ali buffer vsebuje dovolj vzorcev za eno okno.
+
+        Returns:
+            bool — True, ko ACC in GYRO dosežeta zahtevani delež vzorcev
+        """
         acc_required = int(self.acc_max_samples * self.ready_ratio)
         gyro_required = int(self.gyro_max_samples * self.ready_ratio)
 

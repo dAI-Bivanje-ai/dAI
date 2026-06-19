@@ -1,3 +1,11 @@
+"""
+Realtime parser STM32 podatkovnega toka.
+
+Modul vsebuje LivePacketParser, ki iz toka surovih bajtov (ki prihajajo po
+kosih iz serijskega porta) sproti sestavlja kompletne pakete, jih razčleni
+prek DataLoggerja in vrne kot strukturirane slovarje.
+"""
+
 import logging
 
 
@@ -34,6 +42,13 @@ class LivePacketParser:
     """
 
     def __init__(self, max_buffer_size: int = 200000) -> None:
+        """
+        Inicializira parser z lastnim bufferjem in števci paketov.
+
+        Args:
+            max_buffer_size: int — največja velikost bufferja v bajtih,
+                preden ga ob izgubi sinhronizacije počistimo
+        """
         # hranjenje bajtov iz serial porta ker en read() nii nujno cel paket
         self.buffer = bytearray()
         # buffer ne sme rasti v neskoncnost
@@ -46,6 +61,12 @@ class LivePacketParser:
         self.invalid_packets = 0
 
     def strip_debug_lines(self) -> None:
+        """
+        Iz bufferja odstrani tekstovne debug vrstice naprave.
+
+        Vrstice, ki se začnejo z "Packet" in končajo z \\r\\n, niso del
+        binarnega toka, zato jih pred razčlenjevanjem paketov odstranimo.
+        """
         i = 0
         cleaned = bytearray()
         while i < len(self.buffer):

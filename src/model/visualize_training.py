@@ -1,3 +1,11 @@
+"""
+Skupni prikaz poteka učenja IMU in mikrofonskega modela.
+
+Skripta naloži zgodovini obeh modelov in v eni sliki izriše izgubo,
+točnost in vrzel med učno in validacijsko točnostjo (overfitting gap) za
+oba modela, nato pa sliko shrani in prikaže.
+"""
+
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -8,11 +16,30 @@ import matplotlib.pyplot as plt
 
 
 def load_history(path):
+    """
+    Naloži zgodovino učenja iz JSON datoteke.
+
+    Args:
+        path: pot do .json datoteke z zgodovino
+
+    Returns:
+        dict — zgodovina učenja (train_loss, train_acc, val_acc)
+    """
     with open(path) as f:
         return json.load(f)
 
 
 def plot_loss(ax, epochs, loss, title, color):
+    """
+    Izriše krivuljo izgube po epohah.
+
+    Args:
+        ax: matplotlib os, na katero se riše
+        epochs: zaporedje epoh
+        loss: vrednosti izgube po epohah
+        title: str — naslov grafa
+        color: barva krivulje
+    """
     ax.plot(epochs, loss, color=color, label="Train loss")
     ax.set_title(title, fontweight="bold")
     ax.set_xlabel("Epoha")
@@ -22,6 +49,17 @@ def plot_loss(ax, epochs, loss, title, color):
 
 
 def plot_accuracy(ax, epochs, train_acc, val_acc, title, color):
+    """
+    Izriše učno in validacijsko točnost ter označi najboljšo epoho.
+
+    Args:
+        ax: matplotlib os, na katero se riše
+        epochs: zaporedje epoh
+        train_acc: učna točnost po epohah
+        val_acc: validacijska točnost po epohah
+        title: str — naslov grafa
+        color: barva krivulje učne točnosti
+    """
     best_epoch = int(np.argmax(val_acc)) + 1
     best_val = max(val_acc)
 
@@ -46,6 +84,19 @@ def plot_accuracy(ax, epochs, train_acc, val_acc, title, color):
 
 
 def plot_overfitting(ax, epochs, train_acc, val_acc, title, color):
+    """
+    Izriše vrzel med učno in validacijsko točnostjo po epohah.
+
+    Velika pozitivna vrzel kaže na prenaučenje (overfitting).
+
+    Args:
+        ax: matplotlib os, na katero se riše
+        epochs: zaporedje epoh
+        train_acc: učna točnost po epohah
+        val_acc: validacijska točnost po epohah
+        title: str — naslov grafa
+        color: barva krivulje
+    """
     gap = [t - v for t, v in zip(train_acc, val_acc)]
     ax.plot(epochs, gap, color=color)
     ax.axhline(0, color="gray", linestyle="--", linewidth=0.8)
@@ -56,6 +107,11 @@ def plot_overfitting(ax, epochs, train_acc, val_acc, title, color):
 
 
 def main():
+    """
+    Naloži zgodovini obeh modelov in izriše skupno sliko 2x3 grafov.
+
+    Sliko shrani v models/training_plot_combined.png in jo prikaže.
+    """
     h_imu = load_history(ROOT_DIR / "models" / "history.json")
     h_mic = load_history(ROOT_DIR / "models" / "history_mic.json")
 

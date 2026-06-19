@@ -1,3 +1,11 @@
+"""
+Realtime predobdelava IMU in mikrofonskih signalov v spektrograme.
+
+Modul vsebuje dva preprocessorja, ki surove realtime signale pretvorita v
+enako oblikovane spektrograme kot pri učenju modelov, da lahko realtime
+napovedi uporabljajo iste uteži. Vrneta zadnji segment, pripravljen za model.
+"""
+
 import numpy as np
 import torch
 
@@ -27,6 +35,9 @@ class RealtimePreprocessor:
     """
 
     def __init__(self) -> None:
+        """
+        Nastavi velikosti FFT oken in dolžino segmenta, enake kot pri učenju.
+        """
         # Enake velikosti FFT oken kot pri offline pripravi dataseta.
         self.acc_window_size = 49
         self.gyro_window_size = 211
@@ -152,6 +163,18 @@ class MicRealtimePreprocessor:
         stft_overlap: float,
         rms_threshold: float,
     ) -> None:
+        """
+        Shrani parametre predobdelave mikrofona (enake kot pri učenju).
+
+        Args:
+            log_min: float — spodnja meja log normalizacije iz treninga
+            log_max: float — zgornja meja log normalizacije iz treninga
+            sample_rate: float — vzorčevalna frekvenca mikrofona v Hz
+            segment_seconds: float — dolžina segmenta v sekundah
+            stft_window_seconds: float — dolžina enega STFT okna v sekundah
+            stft_overlap: float — prekrivanje STFT oken (npr. 0.5 = 50 %)
+            rms_threshold: float — prag glasnosti za zaznavo tišine
+        """
         self.log_min = log_min
         self.log_max = log_max
 
@@ -202,7 +225,19 @@ class MicRealtimePreprocessor:
         return ((segment_samples - window_samples) // hop_samples) + 1
 
     def process(self, samples: np.ndarray) -> tuple[torch.Tensor | None, float]:
+        """
+        Pripravi zadnji mikrofonski segment v tensor za model.
 
+        A-law vzorce dekodira, filtrira, preveri glasnost (rms) in jih
+        pretvori v normaliziran spektrogram. Pri tišini ali premalo podatkih
+        vrne (None, rms).
+
+        Args:
+            samples: np.ndarray — surovi A-law (int8) mikrofonski vzorci
+
+        Returns:
+            tuple(Tensor | None, float) — pripravljen tensor (ali None) in rms
+        """
         raw = np.asarray(samples, dtype=np.int8)
         pcm = alaw_decode_all(raw)
         filtered = bandpass_mic(pcm, self.sample_rate)

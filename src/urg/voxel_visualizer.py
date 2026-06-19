@@ -1,3 +1,10 @@
+"""
+3D prikaz vokselskega modela z matplotlib.
+
+Modul izriše snovne voksle (oznaka 1) kot kvadre, z barvno shemo skladno
+s prikazom trikotniškega modela v visualizer.py.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from voxel_grid import VoxelGrid

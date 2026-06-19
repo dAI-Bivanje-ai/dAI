@@ -1,3 +1,12 @@
+"""
+Realtime grafični vmesnik za klasifikacijo aktivnosti.
+
+Modul prikaže preprosto tkinter nadzorno ploščo z zadnjima napovedma za
+gibanje (IMU) in zvok (MIC), statusom in seznamom časov aktivnosti.
+Inferenca teče v ločeni niti, rezultati pa se v GUI prenašajo prek vrste
+(queue).
+"""
+
 import queue
 import threading
 import tkinter as tk
@@ -19,6 +28,7 @@ from src.realtime.signal_buffer import SignalBuffer
 from src.realtime.prediction_stabilizer import PredictionStabilizer
 
 from src.realtime.activity_timer import ActivityTimer
+from src.realtime.notifier import notify
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
@@ -47,9 +57,11 @@ GYRO_RESOLUTION = 8.75e-3
 MIC_MAXLEN = int(MIC_SEGMENT_SECONDS * MIC_SAMPLE_RATE)
 
 
+# Kako pogosto najmanj izvedemo posamezno napoved (v sekundah)
 IMU_PREDICT_INTERVAL_S = 3.0
 MIC_PREDICT_INTERVAL_S = 1.0
 
+# Barve za posamezne razrede in osnovna paleta vmesnika
 CLASS_COLORS = {
     "DELO": "#3ee6b0",      # neon zelena / cyan
     "TELEFON": "#ff4d5e",   # rdeča
@@ -72,6 +84,9 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
 def load_imu_model():
+    """
+    Naloži naučen IMU model in ga preklopi v eval način.
+    """
     model = IMUModel(num_classes=2)
     model.load_state_dict(torch.load(str(IMU_MODEL_PATH), map_location="cpu"))
     model.eval()
@@ -79,6 +94,9 @@ def load_imu_model():
 
 
 def load_mic_model():
+    """
+    Naloži mikrofonski model in normalizacijska parametra (log_min, log_max).
+    """
     checkpoint = torch.load(str(MIC_MODEL_PATH), map_location="cpu")
     model = MicModel(num_classes=2)
     model.load_state_dict(checkpoint["model"])
@@ -87,21 +105,38 @@ def load_mic_model():
 
 
 class GUI:
+    """
+    Nadzorna plošča realtime sistema (tkinter).
 
+    Sestavi vmesnik, redno prebira vrsto z rezultati inference iz delovne
+    niti in posodablja prikaz: napovedi, status in čase aktivnosti.
+    """
+
+    # Kako pogosto osvežimo vmesnik (v milisekundah)
     REFRESH_RATE_MS = 200
     WIN_W = 660
     WIN_H = 792
 
     def __init__(self, root: tk.Tk):
+        """
+        Pripravi okno, stanje in časovnike ter sestavi vmesnik.
+
+        Args:
+            root: tk.Tk — glavno okno aplikacije
+        """
         self.root = root
         self.root.title("dAI")
         self.root.configure(fg_color=BG)
         self.root.resizable(False, False)
 
+        # Vrsta, prek katere delovna nit pošilja rezultate v GUI nit
         self.queue: queue.Queue = queue.Queue()
+        # Zadnji znani napovedi in zadnje prikazano obvestilo
         self.last_imu = None
         self.last_mic = None
+        self.last_notif_text = None
 
+        # Časovnika, ki merita trajanje posameznih aktivnosti
         self.imu_timer = ActivityTimer()
         self.mic_timer = ActivityTimer()
 
@@ -287,6 +322,9 @@ class GUI:
         self.root.after(700, self._twinkle)
 
     def set_imu(self, text, color):
+        """
+        Posodobi besedilo in barvo IMU kartice.
+        """
         self.imu_label_var.set(text)
         self.imu_lbl.configure(fg=color)
 
@@ -299,9 +337,16 @@ class GUI:
         self.mic_underline.configure(fg_color=color)
 
     def schedule_refresh(self):
+        """
+        Načrtuje naslednji periodični klic refresh().
+        """
         self.root.after(self.REFRESH_RATE_MS, self.refresh)
 
     def refresh(self):
+        """
+        Obdela vse čakajoče dogodke iz vrste in znova načrtuje osvežitev.
+        """
+        # Izpraznimo vrsto, dokler so v njej novi dogodki
         while True:
             try:
                 state = self.queue.get_nowait()
@@ -311,6 +356,15 @@ class GUI:
         self.schedule_refresh()
 
     def apply(self, state):
+        """
+        Uveljavi en dogodek iz vrste na prikazu.
+
+        Glede na tip dogodka (connected, disconnected, imu, mic, error)
+        posodobi ustrezne kartice, časovnike, status in obvestila.
+
+        Args:
+            state: dict — dogodek iz delovne niti
+        """
         t = state.get("type")
 
         if t == "connected":
@@ -333,6 +387,7 @@ class GUI:
             label = state.get("label")
             self.last_mic = label
 
+            # Brez razreda obravnavamo kot tišino
             if label is None:
                 display_label = "TIŠINA"
                 self.set_mic(display_label, IDLE_COLOR)
@@ -349,24 +404,40 @@ class GUI:
             self.notif_var.set(f"Napaka: {state['msg']}")
 
     def update_notif(self):
+        """
+        Sestavi besedilo statusa iz zadnjih IMU in MIC oznak.
+
+        Posodobi prikazani status, ob dejanski spremembi pa sproži tudi
+        sistemsko notifikacijo.
+        """
         if self.last_imu is None:
-            self.notif_var.set("Čakam na podatke ...")
-            return
-        if self.last_mic is None:
-            self.notif_var.set(f"{self.last_imu} — tišina v ozadju")
-            return
-        notif = NOTIFICATIONS.get((self.last_imu, self.last_mic))
-        if notif:
-            self.notif_var.set(notif)
+            text = "Čakam na podatke ..."
+        elif self.last_mic is None:
+            text = f"{self.last_imu} — tišina v ozadju"
         else:
-            self.notif_var.set(f"{self.last_imu} + {self.last_mic}")
+            notif = NOTIFICATIONS.get((self.last_imu, self.last_mic))
+            text = notif if notif else f"{self.last_imu} + {self.last_mic}"
+
+        self.notif_var.set(text)
+
+        # le ob dejanski spremembi stanja
+        if text != self.last_notif_text and text != "Čakam na podatke ...":
+            notify("dAI", text)
+
+        self.last_notif_text = text
 
     def format_seconds(self, seconds: float) -> str:
+        """
+        Pretvori sekunde v zapis MM:SS.
+        """
         minutes = int(seconds // 60)
         seconds = int(seconds % 60)
         return f"{minutes:02d}:{seconds:02d}"
 
     def update_time_display(self):
+        """
+        Sestavi in osveži besedilni prikaz časov IMU in MIC aktivnosti.
+        """
         imu_times = self.imu_timer.get_durations()
         mic_times = self.mic_timer.get_durations()
 
@@ -469,9 +540,19 @@ class GUI:
             ).grid(row=i, column=2, sticky="e", pady=1)
 
     def start_thread(self):
+        """
+        Zažene inferenco v ločeni daemon niti.
+        """
         threading.Thread(target=self.prediction_loop, daemon=True).start()
 
     def prediction_loop(self):
+        """
+        Delovna nit: bere tok, izvaja inferenco in pošilja rezultate v vrsto.
+
+        Naloži modele in preprocessorje, periodično izvaja IMU in MIC
+        napovedi ter stanje sporoča GUI niti prek vrste (queue).
+        """
+        # Naložimo oba modela; ob napaki sporočimo GUI in končamo nit
         try:
             imu_model = load_imu_model()
             mic_model, log_min, log_max = load_mic_model()
@@ -500,18 +581,23 @@ class GUI:
             acc_resolution=ACC_RESOLUTION,
             gyro_resolution=GYRO_RESOLUTION,
         )
+        # Mikrofon hranimo v ločenem bufferju, ker je 1D
         mic_buf: deque = deque(maxlen=MIC_MAXLEN)
 
+        # Stabilizator zgladi utripanje mikrofonskih napovedi
         mic_stabilizer = PredictionStabilizer(window_size=5, min_ratio=0.60)
 
+        # Čas zadnje izvedene napovedi za vsak senzor
         last_imu_time = 0.0
         last_mic_time = 0.0
 
         try:
+            # Glavna zanka: beremo tok bajtov iz naprave
             for chunk in reader.read_stream():
                 if reader.port:
                     self.queue.put({"type": "connected", "port": reader.port})
 
+                # Iz bajtov sestavimo pakete in jih obdelamo
                 for packet in parser.feed(chunk):
                     chunks = packet.get("chunks", {})
 
@@ -522,6 +608,7 @@ class GUI:
 
                     now = time.monotonic()
 
+                    # IMU napoved izvedemo periodično, ne na vsak paket
                     if now - last_imu_time > IMU_PREDICT_INTERVAL_S:
                         last_imu_time = now
                         acc_window, gyro_window = signal_buffer.get_window()
@@ -535,6 +622,7 @@ class GUI:
                                     {"type": "imu", "label": IMU_CLASSES[pred]}
                                 )
 
+                    # MIC napoved izvajamo redkeje in le, ko imamo vzorce
                     if now - last_mic_time > MIC_PREDICT_INTERVAL_S and mic_buf:
                         last_mic_time = now
                         samples = np.array(mic_buf, dtype=np.int8)
@@ -542,6 +630,7 @@ class GUI:
                         if tensor is not None:
                             with torch.no_grad():
                                 pred = mic_model(tensor).argmax(dim=1).item()
+                            # V GUI pošljemo samo potrjeno (stabilno) napoved
                             stable = mic_stabilizer.update(MIC_CLASSES[pred])
                             if stable is not None:
                                 self.queue.put(
@@ -555,6 +644,7 @@ class GUI:
                             self.queue.put({"type": "mic", "label": None, "rms": rms})
 
         except Exception:
+            # Ob napaki ali odklopu naprave sporočimo GUI
             self.queue.put({"type": "disconnected"})
 
 

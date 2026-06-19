@@ -1,9 +1,27 @@
+"""
+Preverjanje vodotesnosti trikotniške mreže.
+
+Modul prešteje pojavitve vsakega roba v mreži. Pri zaprtem (vodotesnem)
+modelu mora vsak rob pripadati natanko dvema trikotnikoma.
+"""
+
 from collections import defaultdict
 import numpy as np
 
 
 def check_watertight(triangles: list[dict]) -> bool:
+    """
+    Preveri, ali je trikotniška mreža vodotesna (zaprta).
 
+    Vsak rob normalizira (uredi krajišči) in prešteje, koliko trikotnikom
+    pripada. Model je vodotesen, če vsak rob nastopa natanko dvakrat.
+
+    Args:
+        triangles: list[dict] — trikotniki iz read_stl()
+
+    Returns:
+        bool — True če je mreža vodotesna, sicer False
+    """
     edge_count = defaultdict(int)
 
     for t in triangles:

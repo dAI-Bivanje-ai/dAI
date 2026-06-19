@@ -1,17 +1,60 @@
+"""
+Algoritmi za konveksno lupino (convex hull) 2D točk.
+
+Modul vsebuje tri neodvisne implementacije konveksne lupine
+(Jarvisov pohod, Grahamovo preiskovanje in Quickhull) ter pomožne
+geometrijske funkcije (razdalja, koti, ploščina, stran točke glede
+na premico), ki jih uporabljajo tudi drugi moduli vokselizacije.
+"""
+
 import numpy as np
 
+# Numerična toleranca za primerjave s plavajočo vejico.
 epsilon = 1e-9
 
 
 def dist(a, b):
+    """
+    Izračuna evklidsko razdaljo med dvema 2D točkama.
+
+    Args:
+        a: tuple(float, float) — prva točka
+        b: tuple(float, float) — druga točka
+
+    Returns:
+        float — razdalja med točkama
+    """
     return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
 
 def polar_angle(p, origin):
+    """
+    Izračuna polarni kot točke glede na izhodišče.
+
+    Args:
+        p: tuple(float, float) — točka
+        origin: tuple(float, float) — izhodišče
+
+    Returns:
+        float — kot v radianih v območju [-pi, pi]
+    """
     return np.arctan2(p[1] - origin[1], p[0] - origin[0])
 
 
 def vector_angle(prev, current, candidate):
+    """
+    Izračuna kot med vektorjema (prev do current) in (current do candidate).
+
+    Uporablja se pri Jarvisovem pohodu za izbiro naslednje točke lupine.
+
+    Args:
+        prev: tuple(float, float) — prejšnja točka lupine
+        current: tuple(float, float) — trenutna točka lupine
+        candidate: tuple(float, float) — kandidatna naslednja točka
+
+    Returns:
+        float — kot v radianih, ali inf če je kateri vektor ničeln
+    """
     v1 = (current[0] - prev[0], current[1] - prev[1])
     v2 = (candidate[0] - current[0], candidate[1] - current[1])
     dot = v1[0] * v2[0] + v1[1] * v2[1]
@@ -24,6 +67,18 @@ def vector_angle(prev, current, candidate):
 
 
 def jarvis(points):
+    """
+    Izračuna konveksno lupino z Jarvisovim pohodom (gift wrapping).
+
+    Začne pri najnižji točki in se po robu lupine ovija od točke do
+    točke, dokler se ne vrne v začetno točko.
+
+    Args:
+        points: list[tuple(float, float)] — vhodne 2D točke
+
+    Returns:
+        list[tuple(float, float)] — oglišča konveksne lupine v vrstnem redu
+    """
     pts = list(points)
     convex_hull = []
 
@@ -76,10 +131,19 @@ def jarvis(points):
     return convex_hull
 
 
-# graham
+# Grahamovo preiskovanje (Graham scan)
 
 
 def find_noncollinear(points):
+    """
+    Poišče prve tri točke, ki ne ležijo na isti premici.
+
+    Args:
+        points: list[tuple(float, float)] — vhodne 2D točke
+
+    Returns:
+        tuple(p0, p1, p2) — tri nekolinearne točke, ali None če so vse kolinearne
+    """
     p0, p1 = points[0], points[1]
     for p2 in points[2:]:
         cross = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0])
@@ -89,6 +153,16 @@ def find_noncollinear(points):
 
 
 def graham_angle(p, origin):
+    """
+    Izračuna polarni kot točke glede na izhodišče v območju [0, 2pi).
+
+    Args:
+        p: tuple(float, float) — točka
+        origin: tuple(float, float) — izhodišče
+
+    Returns:
+        float — kot v radianih v območju [0, 2pi)
+    """
     angle = np.arctan2(p[1] - origin[1], p[0] - origin[0])
     if angle < 0:
         angle += 2 * np.pi
@@ -96,6 +170,19 @@ def graham_angle(p, origin):
 
 
 def graham_scan(points):
+    """
+    Izračuna konveksno lupino z Grahamovim preiskovanjem.
+
+    Točke uredi po polarnem kotu okrog težišča, nato z obhodom
+    odstranjuje točke, ki tvorijo nekonveksen (desni) zavoj.
+
+    Args:
+        points: list[tuple(float, float)] — vhodne 2D točke
+
+    Returns:
+        list[tuple(float, float)] — oglišča konveksne lupine, ali prazen seznam
+            če so vse točke kolinearne
+    """
     result = find_noncollinear(points)
     if result is None:
         return []
@@ -147,6 +234,15 @@ def graham_scan(points):
 
 
 def triangle_area(a, b, c):
+    """
+    Izračuna ploščino trikotnika iz treh oglišč (shoelace formula).
+
+    Args:
+        a, b, c: tuple(float, float) — oglišča trikotnika
+
+    Returns:
+        float — ploščina trikotnika
+    """
     x1, y1 = a
     x2, y2 = b
     x3, y3 = c
@@ -155,6 +251,18 @@ def triangle_area(a, b, c):
 
 
 def triangle_biggest_surface(points, a, b):
+    """
+    Poišče točko, ki z daljico (a, b) tvori trikotnik z največjo ploščino.
+
+    Pomožna funkcija za Quickhull (najbolj oddaljena točka od premice).
+
+    Args:
+        points: list[tuple(float, float)] — kandidatne točke
+        a, b: tuple(float, float) — krajišči daljice
+
+    Returns:
+        tuple(float, float) — točka z največjo ploščino trikotnika
+    """
     best = None
     best_area = -1
     for point in points:
@@ -166,10 +274,34 @@ def triangle_biggest_surface(points, a, b):
 
 
 def point_side(a, b, p):
+    """
+    Določi, na kateri strani premice (a, b) leži točka p.
+
+    Args:
+        a, b: tuple(float, float) — krajišči premice
+        p: tuple(float, float) — točka
+
+    Returns:
+        float — predznačena vrednost križnega produkta
+            (> 0 levo, < 0 desno, 0 na premici)
+    """
     return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
 
 
 def find_hull(points, a, b):
+    """
+    Rekurzivni korak Quickhull algoritma za eno stran daljice.
+
+    Poišče najbolj oddaljeno točko od daljice (a, b) in se rekurzivno
+    spusti na obe novi daljici levo od te točke.
+
+    Args:
+        points: list[tuple(float, float)] — točke na zunanji strani daljice
+        a, b: tuple(float, float) — krajišči daljice
+
+    Returns:
+        list[tuple(float, float)] — del lupine med a in b (brez krajišč)
+    """
     if not points:
         return []
 
@@ -193,6 +325,19 @@ def find_hull(points, a, b):
 
 
 def quickhull(points):
+    """
+    Izračuna konveksno lupino z algoritmom Quickhull.
+
+    Najprej izbere skrajni levi in desni točki, ki razdelita množico na
+    zgornjo in spodnjo polovico, nato vsako polovico rekurzivno obdela
+    s find_hull().
+
+    Args:
+        points: list[tuple(float, float)] — vhodne 2D točke
+
+    Returns:
+        list[tuple(float, float)] — oglišča konveksne lupine v vrstnem redu
+    """
     p_min = points[0]
     p_max = points[0]
     for p in points[1:]:

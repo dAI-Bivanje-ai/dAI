@@ -1,3 +1,11 @@
+"""
+Vokselizacija modela: označevanje površja in polnjenje notranjosti.
+
+Modul najprej označi voksle, ki jih seka trikotniška mreža (površje), nato
+pa z večkratnim flood fillom loči zunanjo okolico, lupino, notranjost in
+vrzeli ter na koncu mrežo preštevilči v oznaki {0, 1}.
+"""
+
 from collections import deque
 import numpy as np
 from voxel_grid import VoxelGrid
@@ -7,7 +15,7 @@ from triangle_voxel import triangle_intersects_voxel
 def flood_fill(labels, start, match, new_label):
     """
     BFS flood fill — označi vse voksle z oznako match, ki so povezani s start, z new_label.
-    Iterativno (ne rekurzivno) z deque, 6-povezanost.
+    Iterativno z deque, 6-povezanost.
     Args:
         labels:    np.ndarray (nx,ny,nz) uint8 — oznake vokslov
         start:     tuple(int,int,int)          — začetni voksel (i,j,k)

@@ -1,3 +1,11 @@
+"""
+Združeno napovedovanje aktivnosti iz IMU in mikrofonske seje.
+
+Modul za vsako sejo posebej napove IMU aktivnost (delo / telefon) in
+mikrofonski razred (glasba / pogovor / tišina), oba rezultata poravna po
+času in po potrebi izpiše ustrezno opozorilo.
+"""
+
 from pathlib import Path
 import numpy as np
 import torch
@@ -37,7 +45,18 @@ NOTIFICATIONS = {
 
 
 def _imu_predictions(bin_file):
+    """
+    Vrne seznam IMU napovedi — ena na segment seje.
 
+    Sejo predobdela v ACC in GYRO spektrograme, jih normalizira in skozi
+    naučen IMU model napove razred za vsak segment.
+
+    Args:
+        bin_file: str — pot do .bin seje
+
+    Returns:
+        list[int] — napovedani razredi po segmentih
+    """
     fvz_acc, sig_acc, fvz_gyro, sig_gyro = load_session(bin_file)
 
     windows_acc = window_signal_seconds(sig_acc, fvz_acc, force_W=49)
@@ -130,6 +149,15 @@ def _mic_predictions(bin_file):
 
 
 def predict_combined(bin_file):
+    """
+    Združi IMU in mikrofonske napovedi za eno sejo in jih izpiše.
+
+    Za vsak mikrofonski segment poišče ujemajočo IMU napoved po času in
+    izpiše obe oznaki, glasnost (rms) ter morebitno opozorilo.
+
+    Args:
+        bin_file: str — pot do .bin seje
+    """
     print(f"Nalagam: {bin_file}\n")
 
     imu_preds = _imu_predictions(bin_file)

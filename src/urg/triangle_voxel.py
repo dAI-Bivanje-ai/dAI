@@ -1,3 +1,11 @@
+"""
+Test preseka med trikotnikom in posameznim vokslom.
+
+Modul izračuna ravnino trikotnika, poišče presečišča te ravnine z robovi
+voksla, projicira točke v 2D in nato preveri, ali se trikotnik in presek
+voksla dejansko prekrivata. Uporablja se pri vokselizaciji površja.
+"""
+
 import numpy as np
 from voxel_grid import VoxelGrid, voxel_corners
 from convex_hull import (
@@ -13,7 +21,7 @@ def plane_from_triangle(v0, v1, v2):
         v0, v1, v2: np.ndarray (3,) — oglišča trikotnika
     Returns:
         n: np.ndarray (3,) — normalizirana normala ravnine
-        d: float           — skalar iz enačbe n·x + d = 0
+        d: float           — skalar iz enačbe n*x + d = 0
     """
     n = np.cross(v1 - v0, v2 - v0)
     n = n / np.linalg.norm(n)
