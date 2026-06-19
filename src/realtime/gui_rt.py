@@ -361,11 +361,8 @@ class GUI:
         self.root.after(700, self._twinkle)
 
     def set_imu(self, text, color):
-        """
-        Posodobi besedilo in barvo IMU kartice.
-        """
-        self.imu_label_var.set(text)
-        self.imu_lbl.configure(fg=color)
+        self.imu_value_lbl.configure(text=text, text_color=color)
+        self.imu_underline.configure(fg_color=color)
 
     def set_mic(self, text, color):
         self.mic_value_lbl.configure(text=text, text_color=color)
