@@ -155,6 +155,74 @@ class GUI:
         )
         y += 84
 
+        # kartici GIBANJE / ZVOK 
+        card_h = 150
+        card_w = (content_w - gap) // 2
+        left = cx - content_w // 2
+        right = cx + content_w // 2
+
+        self.imu_frame, self.imu_value_lbl, self.imu_underline = self.make_card(
+            "GIBANJE (IMU)"
+        )
+        self.bg_canvas.create_window(
+            left, y, anchor="nw", window=self.imu_frame,
+            width=card_w, height=card_h,
+        )
+        self.mic_frame, self.mic_value_lbl, self.mic_underline = self.make_card(
+            "ZVOK (MIC)"
+        )
+        self.bg_canvas.create_window(
+            right, y, anchor="ne", window=self.mic_frame,
+            width=card_w, height=card_h,
+        )
+        y += card_h + gap
+
+        # tortni diagram za prikaz razporeditve časa 
+        donut_card = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
+        ctk.CTkLabel(
+            donut_card, text="RAZPOREDITEV ČASA", font=self.font_card_title,
+            text_color=TEXT_SEC,
+        ).pack(pady=(12, 2))
+        donut_body = ctk.CTkFrame(donut_card, fg_color="transparent")
+        donut_body.pack(fill="both", expand=True, pady=(0, 10))
+        self.donut_canvas = tk.Canvas(
+            donut_body, width=160, height=160, bg=CARD_BG,
+            highlightthickness=0, bd=0,
+        )
+        self.donut_canvas.pack(side="left", padx=(26, 12))
+        self.legend_frame = ctk.CTkFrame(donut_body, fg_color="transparent")
+        self.legend_frame.pack(
+            side="left", fill="both", expand=True, padx=(12, 24)
+        )
+        donut_h = 222
+        self.bg_canvas.create_window(
+            cx, y, anchor="n", window=donut_card,
+            width=content_w, height=donut_h,
+        )
+        y += donut_h + gap
+
+        # kartica časov aktivnosti
+        times_card = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
+        ctk.CTkLabel(
+            times_card, text="ČASI AKTIVNOSTI", font=self.font_card_title,
+            text_color=TEXT_SEC,
+        ).pack(pady=(12, 2))
+        self.times_body = ctk.CTkFrame(times_card, fg_color="transparent")
+        self.times_body.pack(
+            fill="both", expand=True, padx=24, pady=(2, 12)
+        )
+        times_h = 172
+        self.bg_canvas.create_window(
+            cx, y, anchor="n", window=times_card,
+            width=content_w, height=times_h,
+        )
+
+        # conn_var (apply() ga nastavlja ob connect/disconnect)
+        self.conn_var = tk.StringVar(value="Ni povezave")
+
+        # prvi izris donuta in tabele časov
+        self.update_time_display()
+
         
 
     def make_card(self, parent, title):
