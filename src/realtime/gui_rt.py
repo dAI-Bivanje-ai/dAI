@@ -121,90 +121,41 @@ class GUI:
 
 
     def build(self):
-        self.root.geometry("480x500")
+        W, H = self.WIN_W, self.WIN_H
+        self.root.geometry(f"{W}x{H}")
+        self._make_fonts()
 
-        tk.Label(
-            self.root,
-            text="dAI - Realtime klasifikacija aktivnosti",
-            font=("Menlo", 14, "bold"),
-            fg="white",
-            bg=BG,
-            pady=14,
-        ).pack()
+        cx = W // 2
+        margin = 24
+        content_w = W - 2 * margin
+        gap = 14
 
-        self.time_var = tk.StringVar(value="Časi aktivnosti:\nIMU: -\nMIC: -")
-
-        self.time_lbl = tk.Label(
-            self.root,
-            textvariable=self.time_var,
-            font=("Menlo", 10),
-            fg="white",
-            bg=BG,
-            justify=tk.LEFT,
+        # zvezdno ozadje
+        self.bg_canvas = tk.Canvas(
+            self.root, bg=BG, highlightthickness=0, bd=0
         )
-        self.time_lbl.pack(fill=tk.X, padx=24, pady=(0, 12))
+        self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        self._draw_starfield(W, H)
 
-        cards = tk.Frame(self.root, bg=BG)
-        cards.pack(fill=tk.X, padx=24)
+        y = 24
 
-        self.imu_frame = self.make_card(cards, "GIBANJE (IMU)")
-        self.imu_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 8))
-
-        self.mic_frame = self.make_card(cards, "ZVOK (MIC)")
-        self.mic_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0))
-
-        self.imu_label_var = tk.StringVar(value=" ")
-        self.mic_label_var = tk.StringVar(value=" ")
-
-        self.imu_lbl = tk.Label(
-            self.imu_frame,
-            textvariable=self.imu_label_var,
-            font=("Menlo", 32, "bold"),
-            fg=IDLE_COLOR,
-            bg=CARD_BG,
+        # naslov
+        self.bg_canvas.create_text(
+            cx, y, anchor="n", text="dAI", fill=TEXT,
+            font=("Avenir Next", 30, "bold"),
         )
-        self.imu_lbl.pack(pady=(4, 16))
-
-        self.mic_lbl = tk.Label(
-            self.mic_frame,
-            textvariable=self.mic_label_var,
-            font=("Menlo", 32, "bold"),
-            fg=IDLE_COLOR,
-            bg=CARD_BG,
+        self.bg_canvas.create_text(
+            cx, y + 42, anchor="n",
+            text="Realtime klasifikacija aktivnosti",
+            fill=TEXT_SEC, font=("Avenir Next", 12),
         )
-        self.mic_lbl.pack(pady=(4, 16))
+        # neon accent črta pod naslovom
+        self.bg_canvas.create_line(
+            cx - 60, y + 64, cx + 60, y + 64, fill=ACCENT, width=2
+        )
+        y += 84
 
-        notif_frame = tk.Frame(self.root, bg=CARD_BG, pady=12)
-        notif_frame.pack(fill=tk.X, padx=24, pady=20)
-
-        tk.Label(
-            notif_frame,
-            text="STATUS",
-            font=("Menlo", 9, "bold"),
-            fg=IDLE_COLOR,
-            bg=CARD_BG,
-        ).pack()
-
-        self.notif_var = tk.StringVar(value="Čakam na podatke ...")
-        tk.Label(
-            notif_frame,
-            textvariable=self.notif_var,
-            font=("Menlo", 13),
-            fg="white",
-            bg=CARD_BG,
-            wraplength=400,
-            justify=tk.CENTER,
-        ).pack(pady=(4, 0))
-
-        self.conn_var = tk.StringVar(value="Ni povezave")
-        tk.Label(
-            self.root,
-            textvariable=self.conn_var,
-            font=("Menlo", 9),
-            fg=IDLE_COLOR,
-            bg=BG,
-            pady=8,
-        ).pack(side=tk.BOTTOM)
+        
 
     def make_card(self, parent, title):
         frame = tk.Frame(parent, bg=CARD_BG, pady=10, padx=10)
