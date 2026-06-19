@@ -1,6 +1,7 @@
 import pywinctl
 import time
 
+
 def get_active_window():
     app_name = None
     title = None
@@ -38,6 +39,9 @@ NEPRODUKTIVNE = {
 }
 
 
+CATEGORY_LABELS = {0: "PRODUKTIVNE", 1: "NEPRODUKTIVNE"}
+
+
 class ActivityViewer:
 
     def __init__(self):
@@ -52,23 +56,29 @@ class ActivityViewer:
             return 1
         return None
 
-    def run(self):
+    def label_category(self, app_name):
+        category = self.categorize(app_name)
+        if category is None:
+            return "NEZNANO"
+        return CATEGORY_LABELS[category]
 
+    def run(self):
         while True:
             app_name, title = get_active_window()
 
             if app_name != self.last_active_app_name:
-                category = self.categorize(app_name)
-                label = {0: "PRODUKTIVNE", 1: "NEPRODUKTIVNE"}.get(category, "NEZNANO")
-                print(f"{app_name} -> {label}")
-
                 self.last_active_app_name = app_name
                 self.last_active_title = title
+
+                yield {
+                    "app": app_name,
+                    "title": title,
+                    "label": self.label_category(app_name),
+                }
 
             time.sleep(self.interval)
 
 
-
-
 if __name__ == "__main__":
-    ActivityViewer().run()
+    for event in ActivityViewer().run():
+        print(f"{event['app']} -> {event['label']}")
