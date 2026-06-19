@@ -177,6 +177,24 @@ class GUI:
         )
         y += card_h + gap
 
+        # STATUS panel 
+        self.notif_var = tk.StringVar(value="Čakam na podatke ...")
+        status = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
+        ctk.CTkLabel(
+            status, text="STATUS", font=self.font_card_title,
+            text_color=TEXT_SEC,
+        ).pack(pady=(14, 0))
+        ctk.CTkLabel(
+            status, textvariable=self.notif_var, font=self.font_status,
+            text_color=TEXT, wraplength=content_w - 60, justify="center",
+        ).pack(expand=True, pady=(2, 12))
+        status_h = 84
+        self.bg_canvas.create_window(
+            cx, y, anchor="n", window=status,
+            width=content_w, height=status_h,
+        )
+        y += status_h + gap
+
         # tortni diagram za prikaz razporeditve časa 
         donut_card = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
         ctk.CTkLabel(
@@ -225,20 +243,60 @@ class GUI:
 
         
 
-    def make_card(self, parent, title):
-        frame = tk.Frame(parent, bg=CARD_BG, pady=10, padx=10)
-        tk.Label(
-            frame, text=title, font=("Menlo", 9, "bold"), fg=IDLE_COLOR, bg=CARD_BG
-        ).pack()
-        return frame
+        
+
+    def make_card(self, title):
+        """ 
+        Ustvari dashboard kartico;
+        vrne (frame, value_label, underline).
+        """
+        frame = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
+        ctk.CTkLabel(
+            frame, text=title, font=self.font_card_title, text_color=TEXT_SEC
+        ).pack(pady=(16, 0))
+        value = ctk.CTkLabel(
+            frame, text="—", font=self.font_value, text_color=IDLE_COLOR
+        )
+        value.pack(expand=True)
+        underline = ctk.CTkFrame(
+            frame, height=4, corner_radius=2, fg_color=IDLE_COLOR
+        )
+        underline.pack(fill="x", padx=34, pady=(0, 18))
+        return frame, value, underline
+    
+    def _draw_starfield(self, W, H):
+        self._stars = []
+        for _ in range(random.randint(40, 60)):
+            x = random.randint(0, W)
+            y = random.randint(0, H)
+            r = random.choice([1, 1, 1, 2, 2, 3])
+            color = random.choice(STAR_COLORS)
+            sid = self.bg_canvas.create_oval(
+                x - r, y - r, x + r, y + r, fill=color, outline=""
+            )
+            self._stars.append((sid, color))
+        self._twinkle()
+
+    def _twinkle(self):
+        for sid, color in self._stars:
+            if random.random() < 0.12:
+                dim = random.random() < 0.5
+                self.bg_canvas.itemconfigure(
+                    sid, fill="#3a3a55" if dim else color
+                )
+        self.root.after(700, self._twinkle)
 
     def set_imu(self, text, color):
         self.imu_label_var.set(text)
         self.imu_lbl.configure(fg=color)
 
+    def set_imu(self, text, color):
+        self.imu_value_lbl.configure(text=text, text_color=color)
+        self.imu_underline.configure(fg_color=color)
+
     def set_mic(self, text, color):
-        self.mic_label_var.set(text)
-        self.mic_lbl.configure(fg=color)
+        self.mic_value_lbl.configure(text=text, text_color=color)
+        self.mic_underline.configure(fg_color=color)
 
     def schedule_refresh(self):
         self.root.after(self.REFRESH_RATE_MS, self.refresh)
@@ -312,23 +370,103 @@ class GUI:
         imu_times = self.imu_timer.get_durations()
         mic_times = self.mic_timer.get_durations()
 
-        text = "Časi aktivnosti:\n"
+        combined = {}
+        for durations in (imu_times, mic_times):
+            for label, seconds in durations.items():
+                combined[label] = combined.get(label, 0.0) + seconds
 
-        text += "IMU:\n"
-        if imu_times:
-            for label, seconds in imu_times.items():
-                text += f"  {label}: {self.format_seconds(seconds)}\n"
+        self._draw_donut(combined)
+        self._render_times(imu_times, mic_times)
+    
+    def _draw_donut(self, combined):
+        c = self.donut_canvas
+        c.delete("all")
+        bbox = (8, 8, 152, 152)
+        total = sum(combined.values())
+
+        if total <= 0:
+            c.create_oval(*bbox, outline=IDLE_COLOR, width=16)
         else:
-            text += "  -\n"
+            start = 90.0
+            for label, seconds in combined.items():
+                if seconds <= 0:
+                    continue
+                extent = -360.0 * (seconds / total)
+                if abs(extent) >= 360.0:
+                    extent = -359.99
+                c.create_arc(
+                    *bbox, start=start, extent=extent,
+                    fill=DONUT_COLORS.get(label, IDLE_COLOR),
+                    outline=CARD_BG, width=1, style=tk.PIESLICE,
+                )
+                start += extent
 
-        text += "MIC:\n"
-        if mic_times:
-            for label, seconds in mic_times.items():
-                text += f"  {label}: {self.format_seconds(seconds)}\n"
-        else:
-            text += "  -\n"
+        # luknja v sredini -> donut videz
+        c.create_oval(44, 44, 116, 116, fill=CARD_BG, outline=CARD_BG)
+        c.create_text(
+            80, 80, text=self.format_seconds(total), fill=TEXT,
+            font=("Menlo", 15, "bold"),
+        )
 
-        self.time_var.set(text)
+        # legenda
+        for child in self.legend_frame.winfo_children():
+            child.destroy()
+        items = combined.items() if total > 0 else []
+        for row, (label, seconds) in enumerate(items):
+            pct = 100.0 * seconds / total
+            ctk.CTkLabel(
+                self.legend_frame, text="●", font=self.font_small,
+                text_color=DONUT_COLORS.get(label, IDLE_COLOR),
+            ).grid(row=row, column=0, sticky="w", padx=(0, 6), pady=1)
+            ctk.CTkLabel(
+                self.legend_frame, text=label, font=self.font_label,
+                text_color=TEXT,
+            ).grid(row=row, column=1, sticky="w", pady=1)
+            ctk.CTkLabel(
+                self.legend_frame, text=f"{pct:.0f}%", font=self.font_mono,
+                text_color=TEXT_SEC,
+            ).grid(row=row, column=2, sticky="e", padx=(16, 0), pady=1)
+        self.legend_frame.grid_columnconfigure(1, weight=1)
+
+    def _render_times(self, imu_times, mic_times):
+        body = self.times_body
+        for child in body.winfo_children():
+            child.destroy()
+
+        body.grid_columnconfigure(0, weight=1, uniform="cols")
+        body.grid_columnconfigure(1, weight=1, uniform="cols")
+        body.grid_rowconfigure(0, weight=1)
+
+        self._time_column(body, 0, "GIBANJE (IMU)", imu_times, (0, 16))
+        self._time_column(body, 1, "ZVOK (MIC)", mic_times, (16, 0))
+
+    def _time_column(self, parent, col, title, durations, padx):
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
+        frame.grid(row=0, column=col, sticky="new", padx=padx)
+        frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            frame, text=title, font=self.font_small, text_color=TEXT_SEC
+        ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 4))
+
+        if not durations:
+            ctk.CTkLabel(
+                frame, text="—", font=self.font_label, text_color=TEXT_SEC
+            ).grid(row=1, column=1, sticky="w")
+            return
+
+        for i, (label, seconds) in enumerate(durations.items(), start=1):
+            ctk.CTkLabel(
+                frame, text="●", font=self.font_small,
+                text_color=DONUT_COLORS.get(label, IDLE_COLOR),
+            ).grid(row=i, column=0, sticky="w", padx=(0, 8), pady=1)
+            ctk.CTkLabel(
+                frame, text=label, font=self.font_label, text_color=TEXT
+            ).grid(row=i, column=1, sticky="w", pady=1)
+            ctk.CTkLabel(
+                frame, text=self.format_seconds(seconds),
+                font=self.font_mono, text_color=TEXT_SEC,
+            ).grid(row=i, column=2, sticky="e", pady=1)
 
     def start_thread(self):
         threading.Thread(target=self.prediction_loop, daemon=True).start()
@@ -422,7 +560,7 @@ class GUI:
 
 def run():
 
-    root = tk.Tk()
+    root = ctk.CTk()
     gui = GUI(root)
     gui.start_thread()
     root.mainloop()
