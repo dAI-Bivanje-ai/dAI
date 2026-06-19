@@ -70,7 +70,7 @@ CLASS_COLORS = {
 }
 IDLE_COLOR = "#8b8ba0"
 
-# Barve za donut / legendo / časovne vrstice 
+# Barve za donut / legendo / časovne vrstice
 DONUT_COLORS = {**CLASS_COLORS, "TIŠINA": "#5a5a72"}
 
 BG = "#07080d"  # skoraj črno ozadje
@@ -170,9 +170,7 @@ class GUI:
         gap = 14
 
         # zvezdno ozadje
-        self.bg_canvas = tk.Canvas(
-            self.root, bg=BG, highlightthickness=0, bd=0
-        )
+        self.bg_canvas = tk.Canvas(self.root, bg=BG, highlightthickness=0, bd=0)
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         self._draw_starfield(W, H)
 
@@ -180,13 +178,20 @@ class GUI:
 
         # naslov
         self.bg_canvas.create_text(
-            cx, y, anchor="n", text="dAI", fill=TEXT,
+            cx,
+            y,
+            anchor="n",
+            text="dAI",
+            fill=TEXT,
             font=("Avenir Next", 30, "bold"),
         )
         self.bg_canvas.create_text(
-            cx, y + 42, anchor="n",
+            cx,
+            y + 42,
+            anchor="n",
             text="Realtime klasifikacija aktivnosti",
-            fill=TEXT_SEC, font=("Avenir Next", 12),
+            fill=TEXT_SEC,
+            font=("Avenir Next", 12),
         )
         # neon accent črta pod naslovom
         self.bg_canvas.create_line(
@@ -194,7 +199,7 @@ class GUI:
         )
         y += 84
 
-        # kartici GIBANJE / ZVOK 
+        # kartici GIBANJE / ZVOK
         card_h = 150
         card_w = (content_w - gap) // 2
         left = cx - content_w // 2
@@ -204,80 +209,112 @@ class GUI:
             "GIBANJE (IMU)"
         )
         self.bg_canvas.create_window(
-            left, y, anchor="nw", window=self.imu_frame,
-            width=card_w, height=card_h,
+            left,
+            y,
+            anchor="nw",
+            window=self.imu_frame,
+            width=card_w,
+            height=card_h,
         )
         self.mic_frame, self.mic_value_lbl, self.mic_underline = self.make_card(
             "ZVOK (MIC)"
         )
         self.bg_canvas.create_window(
-            right, y, anchor="ne", window=self.mic_frame,
-            width=card_w, height=card_h,
+            right,
+            y,
+            anchor="ne",
+            window=self.mic_frame,
+            width=card_w,
+            height=card_h,
         )
         y += card_h + gap
 
-        # STATUS panel 
+        # STATUS panel
         self.notif_var = tk.StringVar(value="Čakam na podatke ...")
         status = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
         ctk.CTkLabel(
-            status, text="STATUS", font=self.font_card_title,
+            status,
+            text="STATUS",
+            font=self.font_card_title,
             text_color=TEXT_SEC,
         ).pack(pady=(14, 0))
         ctk.CTkLabel(
-            status, textvariable=self.notif_var, font=self.font_status,
-            text_color=TEXT, wraplength=content_w - 60, justify="center",
+            status,
+            textvariable=self.notif_var,
+            font=self.font_status,
+            text_color=TEXT,
+            wraplength=content_w - 60,
+            justify="center",
         ).pack(expand=True, pady=(2, 4))
         # Trenutna aktivna aplikacija in njena kategorija
         self.activity_var = tk.StringVar(value="Aktivnost: -")
         ctk.CTkLabel(
-            status, textvariable=self.activity_var, font=self.font_mono,
+            status,
+            textvariable=self.activity_var,
+            font=self.font_mono,
             text_color=TEXT_SEC,
         ).pack(pady=(0, 12))
         status_h = 112
         self.bg_canvas.create_window(
-            cx, y, anchor="n", window=status,
-            width=content_w, height=status_h,
+            cx,
+            y,
+            anchor="n",
+            window=status,
+            width=content_w,
+            height=status_h,
         )
         y += status_h + gap
 
-        # tortni diagram za prikaz razporeditve časa 
+        # tortni diagram za prikaz razporeditve časa
         donut_card = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
         ctk.CTkLabel(
-            donut_card, text="RAZPOREDITEV ČASA", font=self.font_card_title,
+            donut_card,
+            text="RAZPOREDITEV ČASA",
+            font=self.font_card_title,
             text_color=TEXT_SEC,
         ).pack(pady=(12, 2))
         donut_body = ctk.CTkFrame(donut_card, fg_color="transparent")
         donut_body.pack(fill="both", expand=True, pady=(0, 10))
         self.donut_canvas = tk.Canvas(
-            donut_body, width=160, height=160, bg=CARD_BG,
-            highlightthickness=0, bd=0,
+            donut_body,
+            width=160,
+            height=160,
+            bg=CARD_BG,
+            highlightthickness=0,
+            bd=0,
         )
         self.donut_canvas.pack(side="left", padx=(26, 12))
         self.legend_frame = ctk.CTkFrame(donut_body, fg_color="transparent")
-        self.legend_frame.pack(
-            side="left", fill="both", expand=True, padx=(12, 24)
-        )
+        self.legend_frame.pack(side="left", fill="both", expand=True, padx=(12, 24))
         donut_h = 222
         self.bg_canvas.create_window(
-            cx, y, anchor="n", window=donut_card,
-            width=content_w, height=donut_h,
+            cx,
+            y,
+            anchor="n",
+            window=donut_card,
+            width=content_w,
+            height=donut_h,
         )
         y += donut_h + gap
 
         # kartica časov aktivnosti
         times_card = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
         ctk.CTkLabel(
-            times_card, text="ČASI AKTIVNOSTI", font=self.font_card_title,
+            times_card,
+            text="ČASI AKTIVNOSTI",
+            font=self.font_card_title,
             text_color=TEXT_SEC,
         ).pack(pady=(12, 2))
         self.times_body = ctk.CTkFrame(times_card, fg_color="transparent")
-        self.times_body.pack(
-            fill="both", expand=True, padx=24, pady=(2, 12)
-        )
+        self.times_body.pack(fill="both", expand=True, padx=24, pady=(2, 12))
         times_h = 172
         self.bg_canvas.create_window(
-            cx, y, anchor="n", window=times_card,
-            width=content_w, height=times_h,
+            cx,
+            y,
+            anchor="n",
+            window=times_card,
+            width=content_w,
+            height=times_h,
         )
 
         # conn_var (apply() ga nastavlja ob connect/disconnect)
@@ -287,7 +324,7 @@ class GUI:
         self.update_time_display()
 
     def make_card(self, title):
-        """ 
+        """
         Ustvari dashboard kartico;
         vrne (frame, value_label, underline).
         """
@@ -299,9 +336,7 @@ class GUI:
             frame, text="—", font=self.font_value, text_color=IDLE_COLOR
         )
         value.pack(expand=True)
-        underline = ctk.CTkFrame(
-            frame, height=4, corner_radius=2, fg_color=IDLE_COLOR
-        )
+        underline = ctk.CTkFrame(frame, height=4, corner_radius=2, fg_color=IDLE_COLOR)
         underline.pack(fill="x", padx=34, pady=(0, 18))
         return frame, value, underline
 
@@ -322,9 +357,7 @@ class GUI:
         for sid, color in self._stars:
             if random.random() < 0.12:
                 dim = random.random() < 0.5
-                self.bg_canvas.itemconfigure(
-                    sid, fill="#3a3a55" if dim else color
-                )
+                self.bg_canvas.itemconfigure(sid, fill="#3a3a55" if dim else color)
         self.root.after(700, self._twinkle)
 
     def set_imu(self, text, color):
@@ -473,16 +506,23 @@ class GUI:
                 if abs(extent) >= 360.0:
                     extent = -359.99
                 c.create_arc(
-                    *bbox, start=start, extent=extent,
+                    *bbox,
+                    start=start,
+                    extent=extent,
                     fill=DONUT_COLORS.get(label, IDLE_COLOR),
-                    outline=CARD_BG, width=1, style=tk.PIESLICE,
+                    outline=CARD_BG,
+                    width=1,
+                    style=tk.PIESLICE,
                 )
                 start += extent
 
         # luknja v sredini -> donut videz
         c.create_oval(44, 44, 116, 116, fill=CARD_BG, outline=CARD_BG)
         c.create_text(
-            80, 80, text=self.format_seconds(total), fill=TEXT,
+            80,
+            80,
+            text=self.format_seconds(total),
+            fill=TEXT,
             font=("Menlo", 15, "bold"),
         )
 
@@ -493,15 +533,21 @@ class GUI:
         for row, (label, seconds) in enumerate(items):
             pct = 100.0 * seconds / total
             ctk.CTkLabel(
-                self.legend_frame, text="●", font=self.font_small,
+                self.legend_frame,
+                text="●",
+                font=self.font_small,
                 text_color=DONUT_COLORS.get(label, IDLE_COLOR),
             ).grid(row=row, column=0, sticky="w", padx=(0, 6), pady=1)
             ctk.CTkLabel(
-                self.legend_frame, text=label, font=self.font_label,
+                self.legend_frame,
+                text=label,
+                font=self.font_label,
                 text_color=TEXT,
             ).grid(row=row, column=1, sticky="w", pady=1)
             ctk.CTkLabel(
-                self.legend_frame, text=f"{pct:.0f}%", font=self.font_mono,
+                self.legend_frame,
+                text=f"{pct:.0f}%",
+                font=self.font_mono,
                 text_color=TEXT_SEC,
             ).grid(row=row, column=2, sticky="e", padx=(16, 0), pady=1)
         self.legend_frame.grid_columnconfigure(1, weight=1)
@@ -523,9 +569,9 @@ class GUI:
         frame.grid(row=0, column=col, sticky="new", padx=padx)
         frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(
-            frame, text=title, font=self.font_small, text_color=TEXT_SEC
-        ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 4))
+        ctk.CTkLabel(frame, text=title, font=self.font_small, text_color=TEXT_SEC).grid(
+            row=0, column=0, columnspan=3, sticky="w", pady=(0, 4)
+        )
 
         if not durations:
             ctk.CTkLabel(
@@ -535,15 +581,19 @@ class GUI:
 
         for i, (label, seconds) in enumerate(durations.items(), start=1):
             ctk.CTkLabel(
-                frame, text="●", font=self.font_small,
+                frame,
+                text="●",
+                font=self.font_small,
                 text_color=DONUT_COLORS.get(label, IDLE_COLOR),
             ).grid(row=i, column=0, sticky="w", padx=(0, 8), pady=1)
+            ctk.CTkLabel(frame, text=label, font=self.font_label, text_color=TEXT).grid(
+                row=i, column=1, sticky="w", pady=1
+            )
             ctk.CTkLabel(
-                frame, text=label, font=self.font_label, text_color=TEXT
-            ).grid(row=i, column=1, sticky="w", pady=1)
-            ctk.CTkLabel(
-                frame, text=self.format_seconds(seconds),
-                font=self.font_mono, text_color=TEXT_SEC,
+                frame,
+                text=self.format_seconds(seconds),
+                font=self.font_mono,
+                text_color=TEXT_SEC,
             ).grid(row=i, column=2, sticky="e", pady=1)
 
     def start_thread(self):
