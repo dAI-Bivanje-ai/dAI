@@ -28,6 +28,7 @@ from src.realtime.signal_buffer import SignalBuffer
 from src.realtime.prediction_stabilizer import PredictionStabilizer
 
 from src.realtime.activity_timer import ActivityTimer
+from src.realtime.activity_viewer import ActivityViewer
 from src.realtime.notifier import notify
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -51,7 +52,7 @@ WINDOW_SECONDS = 8.0
 MIC_SEGMENT_SECONDS = 1
 MIC_STFT_WINDOW_SECONDS = 0.032
 MIC_STFT_OVERLAP = 0.5
-MIC_RMS_THRESHOLD = 0.015
+MIC_RMS_THRESHOLD = 0.009
 ACC_RESOLUTION = 1e-3
 GYRO_RESOLUTION = 8.75e-3
 MIC_MAXLEN = int(MIC_SEGMENT_SECONDS * MIC_SAMPLE_RATE)
@@ -115,7 +116,7 @@ class GUI:
     # Kako pogosto osvežimo vmesnik (v milisekundah)
     REFRESH_RATE_MS = 200
     WIN_W = 660
-    WIN_H = 792
+    WIN_H = 820
 
     def __init__(self, root: tk.Tk):
         """
@@ -139,6 +140,10 @@ class GUI:
         # Časovnika, ki merita trajanje posameznih aktivnosti
         self.imu_timer = ActivityTimer()
         self.mic_timer = ActivityTimer()
+
+        # Spremljevalnik aktivne aplikacije (produktivno / neproduktivno)
+        self.last_activity = None
+        self.activity_viewer = ActivityViewer()
 
         self.build()
         self.schedule_refresh()
@@ -222,8 +227,14 @@ class GUI:
         ctk.CTkLabel(
             status, textvariable=self.notif_var, font=self.font_status,
             text_color=TEXT, wraplength=content_w - 60, justify="center",
-        ).pack(expand=True, pady=(2, 12))
-        status_h = 84
+        ).pack(expand=True, pady=(2, 4))
+        # Trenutna aktivna aplikacija in njena kategorija
+        self.activity_var = tk.StringVar(value="Aktivnost: -")
+        ctk.CTkLabel(
+            status, textvariable=self.activity_var, font=self.font_mono,
+            text_color=TEXT_SEC,
+        ).pack(pady=(0, 12))
+        status_h = 112
         self.bg_canvas.create_window(
             cx, y, anchor="n", window=status,
             width=content_w, height=status_h,
@@ -400,6 +411,11 @@ class GUI:
 
             self.update_notif()
 
+        elif t == "activity":
+            self.last_activity = state
+            app = state.get("app") or "?"
+            self.activity_var.set(f"Aktivnost: {app} · {state['label']}")
+
         elif t == "error":
             self.notif_var.set(f"Napaka: {state['msg']}")
 
@@ -541,9 +557,18 @@ class GUI:
 
     def start_thread(self):
         """
-        Zažene inferenco v ločeni daemon niti.
+        Zažene inferenco in spremljanje aktivnosti v ločenih daemon nitih.
         """
         threading.Thread(target=self.prediction_loop, daemon=True).start()
+        threading.Thread(target=self.activity_loop, daemon=True).start()
+
+    def activity_loop(self):
+        """
+        Delovna nit: bere dogodke o spremembi aktivne aplikacije in jih
+        pošilja v GUI nit prek vrste (queue).
+        """
+        for event in self.activity_viewer.run():
+            self.queue.put({"type": "activity", **event})
 
     def prediction_loop(self):
         """
