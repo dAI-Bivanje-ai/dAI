@@ -48,6 +48,7 @@ PRODUKTIVNE = {
     "pycharm",
     "PyCharm",
     "Code",
+    "python"
 }
 
 # Aplikacije, ki se štejejo za neproduktivno rabo
