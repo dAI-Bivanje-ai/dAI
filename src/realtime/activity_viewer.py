@@ -7,8 +7,9 @@ ActivityViewer ob vsaki menjavi aktivne aplikacije sproti vrne dogodek z
 imenom aplikacije, naslovom okna in pripadajočo oznako.
 """
 
-import pywinctl
 import time
+
+import pywinctl
 
 
 def get_active_window():
@@ -42,13 +43,7 @@ def get_active_window():
 
 
 # Aplikacije, ki se štejejo za produktivno delo
-PRODUKTIVNE = {
-    "kitty",
-    "ghostty",
-    "pycharm",
-    "PyCharm",
-    "Code",
-}
+PRODUKTIVNE = {"kitty", "ghostty", "pycharm", "PyCharm", "Code", "python"}
 
 # Aplikacije, ki se štejejo za neproduktivno rabo
 NEPRODUKTIVNE = {
