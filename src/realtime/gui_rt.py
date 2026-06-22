@@ -140,6 +140,7 @@ class GUI:
         # Časovnika, ki merita trajanje posameznih aktivnosti
         self.imu_timer = ActivityTimer()
         self.mic_timer = ActivityTimer()
+        self.productivity_timer = ActivityTimer()
 
         # Spremljevalnik aktivne aplikacije (produktivno / neproduktivno)
         self.last_activity = None
@@ -158,6 +159,20 @@ class GUI:
         self.font_label = ctk.CTkFont(family=sans, size=13)
         self.font_small = ctk.CTkFont(family=sans, size=12)
         self.font_mono = ctk.CTkFont(family="Menlo", size=12)
+
+    def compute_production(self):
+
+        durations = self.productivity_timer.get_durations()
+
+        prod = durations.get("PRODUKTIVNE", 0.0)
+        neprod = durations.get("NEPRODUKTVINE", 0.0)
+
+        total = prod + neprod
+
+        if total == 0.0:
+            return 0.0
+
+        return 100.0 * prod / total
 
     def build(self):
         W, H = self.WIN_W, self.WIN_H
