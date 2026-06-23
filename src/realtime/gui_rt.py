@@ -479,6 +479,9 @@ class GUI:
         if self.last_imu == "TELEFON":
             return "NEPRODUKTIVNE"
 
+        if self.last_mic == "POGOVOR" or self.last_mic == "GLASBA":
+            return "NEPRODUKTIVNE"
+
         return self.last_activity.get("label")
 
     def refresh(self):
@@ -541,7 +544,9 @@ class GUI:
                 display_label = label
                 self.set_mic(label, CLASS_COLORS.get(label, IDLE_COLOR))
 
+            productivity = self.set_productivity()
             self.mic_timer.update(display_label)
+            self.productivity_timer.update(productivity)
             self.update_time_display()
 
             self.update_notif()
