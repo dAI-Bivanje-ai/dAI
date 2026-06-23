@@ -70,6 +70,10 @@ CLASS_COLORS = {
 }
 IDLE_COLOR = "#8b8ba0"
 
+# Barvi za prikaz produktivnosti
+PROD_COLOR = "#3ee6b0"  # zelena — produktivno
+NEPROD_COLOR = "#ff4d5e"  # rdeča — neproduktivno
+
 # Barve za donut / legendo / časovne vrstice
 DONUT_COLORS = {**CLASS_COLORS, "TIŠINA": "#5a5a72"}
 
@@ -116,7 +120,10 @@ class GUI:
     # Kako pogosto osvežimo vmesnik (v milisekundah)
     REFRESH_RATE_MS = 200
     WIN_W = 660
-    WIN_H = 820
+    # Vidna višina okna; vsebina je lahko višja in se drsa (glej CONTENT_H)
+    WIN_H = 800
+    # Skupna višina vsebine (vsota vseh kartic); uporabljena za drsenje
+    CONTENT_H = 956
 
     def __init__(self, root: tk.Tk):
         """
@@ -155,6 +162,7 @@ class GUI:
         sans = "Avenir Next"
         self.font_card_title = ctk.CTkFont(family=sans, size=12, weight="bold")
         self.font_value = ctk.CTkFont(family=sans, size=34, weight="bold")
+        self.font_value_med = ctk.CTkFont(family=sans, size=26, weight="bold")
         self.font_status = ctk.CTkFont(family=sans, size=14)
         self.font_label = ctk.CTkFont(family=sans, size=13)
         self.font_small = ctk.CTkFont(family=sans, size=12)
@@ -174,6 +182,29 @@ class GUI:
 
         return 100.0 * prod / total
 
+    def update_productivity_display(self):
+        """
+        Osveži kartico produktivnosti: odstotek, napredek-bar in čase.
+        """
+        durations = self.productivity_timer.get_durations()
+        prod = durations.get("PRODUKTIVNE", 0.0)
+        neprod = durations.get("NEPRODUKTIVNE", 0.0)
+        pct = self.compute_production()
+
+        # Brez podatkov pustimo nevtralen videz
+        if prod + neprod == 0.0:
+            self.prod_value_lbl.configure(text="—", text_color=IDLE_COLOR)
+        else:
+            self.prod_value_lbl.configure(
+                text=f"{pct:.0f}%",
+                text_color=PROD_COLOR if pct >= 50 else NEPROD_COLOR,
+            )
+
+        self.prod_bar.set(pct / 100.0)
+        self.prod_detail_var.set(
+            f"●  {self.format_seconds(prod)}     ●  {self.format_seconds(neprod)}"
+        )
+
     def build(self):
         W, H = self.WIN_W, self.WIN_H
         self.root.geometry(f"{W}x{H}")
@@ -184,10 +215,10 @@ class GUI:
         content_w = W - 2 * margin
         gap = 14
 
-        # zvezdno ozadje
+        # zvezdno ozadje (zvezde razpnemo čez celotno vsebino, ne le vidni del)
         self.bg_canvas = tk.Canvas(self.root, bg=BG, highlightthickness=0, bd=0)
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
-        self._draw_starfield(W, H)
+        self._draw_starfield(W, self.CONTENT_H)
 
         y = 24
 
@@ -215,7 +246,7 @@ class GUI:
         y += 84
 
         # kartici GIBANJE / ZVOK
-        card_h = 150
+        card_h = 120
         card_w = (content_w - gap) // 2
         left = cx - content_w // 2
         right = cx + content_w // 2
@@ -268,8 +299,8 @@ class GUI:
             textvariable=self.activity_var,
             font=self.font_mono,
             text_color=TEXT_SEC,
-        ).pack(pady=(0, 12))
-        status_h = 112
+        ).pack(pady=(0, 10))
+        status_h = 120
         self.bg_canvas.create_window(
             cx,
             y,
@@ -292,8 +323,8 @@ class GUI:
         donut_body.pack(fill="both", expand=True, pady=(0, 10))
         self.donut_canvas = tk.Canvas(
             donut_body,
-            width=160,
-            height=160,
+            width=120,
+            height=120,
             bg=CARD_BG,
             highlightthickness=0,
             bd=0,
@@ -301,7 +332,7 @@ class GUI:
         self.donut_canvas.pack(side="left", padx=(26, 12))
         self.legend_frame = ctk.CTkFrame(donut_body, fg_color="transparent")
         self.legend_frame.pack(side="left", fill="both", expand=True, padx=(12, 24))
-        donut_h = 222
+        donut_h = 210
         self.bg_canvas.create_window(
             cx,
             y,
@@ -311,6 +342,48 @@ class GUI:
             height=donut_h,
         )
         y += donut_h + gap
+
+        # kartica produktivnosti (produktivno vs neproduktivno delo)
+        prod_card = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
+        ctk.CTkLabel(
+            prod_card,
+            text="PRODUKTIVNOST",
+            font=self.font_card_title,
+            text_color=TEXT_SEC,
+        ).pack(pady=(10, 0))
+        # Velik odstotek produktivnega časa
+        self.prod_value_lbl = ctk.CTkLabel(
+            prod_card, text="—", font=self.font_value_med, text_color=IDLE_COLOR
+        )
+        self.prod_value_lbl.pack(pady=(0, 2))
+        # Napredek-bar: delež produktivnega časa
+        self.prod_bar = ctk.CTkProgressBar(
+            prod_card,
+            height=10,
+            corner_radius=5,
+            progress_color=PROD_COLOR,
+            fg_color=NEPROD_COLOR,
+        )
+        self.prod_bar.set(0.0)
+        self.prod_bar.pack(fill="x", padx=24, pady=(0, 4))
+        # Razčlenitev časov produktivno / neproduktivno
+        self.prod_detail_var = tk.StringVar(value="●  00:00     ●  00:00")
+        ctk.CTkLabel(
+            prod_card,
+            textvariable=self.prod_detail_var,
+            font=self.font_mono,
+            text_color=TEXT_SEC,
+        ).pack(pady=(0, 8))
+        prod_h = 132
+        self.bg_canvas.create_window(
+            cx,
+            y,
+            anchor="n",
+            window=prod_card,
+            width=content_w,
+            height=prod_h,
+        )
+        y += prod_h + gap
 
         # kartica časov aktivnosti
         times_card = ctk.CTkFrame(self.root, corner_radius=16, fg_color=CARD_BG)
@@ -322,7 +395,7 @@ class GUI:
         ).pack(pady=(12, 2))
         self.times_body = ctk.CTkFrame(times_card, fg_color="transparent")
         self.times_body.pack(fill="both", expand=True, padx=24, pady=(2, 12))
-        times_h = 172
+        times_h = 186
         self.bg_canvas.create_window(
             cx,
             y,
@@ -331,12 +404,18 @@ class GUI:
             width=content_w,
             height=times_h,
         )
+        y += times_h + margin
+
+        # Omogočimo drsenje, če je vsebina višja od vidnega okna
+        self.bg_canvas.configure(scrollregion=(0, 0, W, max(y, self.CONTENT_H)))
+        self.bg_canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
         # conn_var (apply() ga nastavlja ob connect/disconnect)
         self.conn_var = tk.StringVar(value="Ni povezave")
 
-        # prvi izris donuta in tabele časov
+        # prvi izris, tabele časov in produktivnosti
         self.update_time_display()
+        self.update_productivity_display()
 
     def make_card(self, title):
         """
@@ -383,6 +462,12 @@ class GUI:
         self.mic_value_lbl.configure(text=text, text_color=color)
         self.mic_underline.configure(fg_color=color)
 
+    def _on_mousewheel(self, event):
+        """
+        Drsenje vsebine z miškinim kolescem (navpično).
+        """
+        self.bg_canvas.yview_scroll(-1 * int(event.delta), "units")
+
     def schedule_refresh(self):
         """
         Načrtuje naslednji periodični klic refresh().
@@ -400,6 +485,8 @@ class GUI:
             except queue.Empty:
                 break
             self.apply(state)
+        # Produktivnost osvežimo ob vsaki osvežitvi, da tekoči čas teče naprej
+        self.update_productivity_display()
         self.schedule_refresh()
 
     def apply(self, state):
@@ -506,11 +593,11 @@ class GUI:
     def _draw_donut(self, combined):
         c = self.donut_canvas
         c.delete("all")
-        bbox = (8, 8, 152, 152)
+        bbox = (8, 8, 112, 112)
         total = sum(combined.values())
 
         if total <= 0:
-            c.create_oval(*bbox, outline=IDLE_COLOR, width=16)
+            c.create_oval(*bbox, outline=IDLE_COLOR, width=12)
         else:
             start = 90.0
             for label, seconds in combined.items():
@@ -531,13 +618,13 @@ class GUI:
                 start += extent
 
         # luknja v sredini -> donut videz
-        c.create_oval(44, 44, 116, 116, fill=CARD_BG, outline=CARD_BG)
+        c.create_oval(34, 34, 86, 86, fill=CARD_BG, outline=CARD_BG)
         c.create_text(
-            80,
-            80,
+            60,
+            60,
             text=self.format_seconds(total),
             fill=TEXT,
-            font=("Menlo", 15, "bold"),
+            font=("Menlo", 12, "bold"),
         )
 
         # legenda
