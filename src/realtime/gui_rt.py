@@ -165,7 +165,7 @@ class GUI:
         durations = self.productivity_timer.get_durations()
 
         prod = durations.get("PRODUKTIVNE", 0.0)
-        neprod = durations.get("NEPRODUKTVINE", 0.0)
+        neprod = durations.get("NEPRODUKTIVNE", 0.0)
 
         total = prod + neprod
 
@@ -451,6 +451,8 @@ class GUI:
             self.last_activity = state
             app = state.get("app") or "?"
             self.activity_var.set(f"Aktivnost: {app} · {state['label']}")
+            label = state.get("label")
+            self.productivity_timer.update(label)
 
         elif t == "error":
             self.notif_var.set(f"Napaka: {state['msg']}")
