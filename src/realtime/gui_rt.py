@@ -474,6 +474,13 @@ class GUI:
         """
         self.root.after(self.REFRESH_RATE_MS, self.refresh)
 
+    def set_productivity(self):
+
+        if self.last_imu == "TELEFON":
+            return "NEPRODUKTIVNE"
+
+        return self.last_activity.get("label")
+
     def refresh(self):
         """
         Obdela vse čakajoče dogodke iz vrste in znova načrtuje osvežitev.
@@ -509,9 +516,14 @@ class GUI:
 
         elif t == "imu":
             label = state["label"]
+            # print(label)
             self.last_imu = label
 
+            productivity = self.set_productivity()
+
             self.imu_timer.update(label)
+            self.productivity_timer.update(productivity)
+
             self.update_time_display()
 
             self.set_imu(label, CLASS_COLORS.get(label, IDLE_COLOR))
@@ -539,7 +551,9 @@ class GUI:
             app = state.get("app") or "?"
             self.activity_var.set(f"Aktivnost: {app} · {state['label']}")
             label = state.get("label")
-            self.productivity_timer.update(label)
+
+            productivity = self.set_productivity()
+            self.productivity_timer.update(productivity)
 
         elif t == "error":
             self.notif_var.set(f"Napaka: {state['msg']}")
