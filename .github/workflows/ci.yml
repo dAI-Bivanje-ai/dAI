@@ -58,7 +58,16 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/release'
     needs: test
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: dAI-macos.zip
+          - os: ubuntu-latest
+            artifact: dAI-linux.zip
 
     permissions:
       contents: write
@@ -86,13 +95,19 @@ jobs:
             --add-data "models:models" \
             app.py
 
-      - name: Package app
+      - name: Package app (macOS)
+        if: runner.os == 'macOS'
         run: |
           ditto -c -k --keepParent dist/dAI.app dist/dAI-macos.zip
+
+      - name: Package app (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd dist && zip -r dAI-linux.zip dAI
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: dAI v1.0.${{ github.run_number }}
-          files: dist/dAI-macos.zip
+          files: dist/${{ matrix.artifact }}
