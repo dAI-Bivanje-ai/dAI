@@ -82,6 +82,12 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
+      - name: Install CPU-only torch (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
