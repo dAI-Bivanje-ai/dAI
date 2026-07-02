@@ -1,0 +1,17 @@
+[Unit]
+Description=SPO STM32 TCP Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ubuntu/dAI
+Environment=PYTHONPATH=/home/ubuntu/dAI
+ExecStart=/home/ubuntu/anaconda3/envs/vaje_sis/bin/python -m src.service.service
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

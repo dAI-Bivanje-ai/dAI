@@ -1,1 +1,11 @@
 pytest
+flake8
+black
+pyserial
+numpy
+matplotlib
+torch
+scipy
+plyer
+customtkinter
+pywinctl
