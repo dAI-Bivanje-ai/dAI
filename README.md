@@ -22,7 +22,7 @@ Sistem zato uporablja več virov podatkov:
 * obdelava mikrofonskih podatkov,
 * pretvorba signalov v spektrograme,
 * učenje in uporaba klasifikacijskih modelov,
-* realtime napoved aktivnosti,
+* realnočasovna napoved aktivnosti,
 * spremljanje trenutno aktivnega okna,
 * izračun produktivnega in neproduktivnega časa,
 * prikaz rezultatov v uporabniškem vmesniku,
@@ -92,15 +92,15 @@ pip install -r requirements.txt
 
 ## Zagon sistema
 
-Za realtime delovanje je treba priključiti napravo STM32. Sistem preko serijske povezave prejema podatke iz IMU senzorjev in mikrofona.
+Za realnočasovno delovanje je treba priključiti napravo STM32. Sistem preko serijske povezave prejema podatke iz IMU senzorjev in mikrofona.
 
-Primer zagona realtime aplikacije:
+Primer zagona realtime aplikacije CLI:
 
 ```bash
 python -m src.realtime.main_rt
 ```
 
-Če se uporablja ločen GUI modul:
+Če se uporablja GUI:
 
 ```bash
 python -m src.realtime.gui_rt
