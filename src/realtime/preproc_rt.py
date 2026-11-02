@@ -154,8 +154,8 @@ class MicRealtimePreprocessor:
 
     Pomembno:
     realtime mora uporabljati iste nastavitve kot training.
-    Če je bil model naučen na 5-sekundnih segmentih, potem mora tudi realtime
-    uporabljati 5-sekundni segment.
+    Model je naučen na ~3-sekundnih segmentih (186 frame-ov), zato mora tudi
+    realtime uporabljati enak segment.
     """
 
     def __init__(
@@ -186,7 +186,7 @@ class MicRealtimePreprocessor:
         # Vzorčevalna frekvenca mikrofona, npr. 8000 Hz.
         self.sample_rate = sample_rate
 
-        # Dolžina segmenta v sekundah, npr. 5 s.
+        # Dolžina segmenta v sekundah, npr. 2.992 s.
         self.segment_seconds = segment_seconds
 
         # Dolžina enega STFT okna, npr. 0.032 s.
@@ -207,14 +207,14 @@ class MicRealtimePreprocessor:
 
         Primer:
         sample_rate = 8000 Hz
-        segment_seconds = 5 s
+        segment_seconds = 2.992 s
         stft_window_seconds = 0.032 s
 
         window_samples = 0.032 * 8000 = 256
         hop_samples = 256 * (1 - 0.5) = 128
-        segment_samples = 5 * 8000 = 40000
+        segment_samples = 2.992 * 8000 = 23936
 
-        frame_count = floor((40000 - 256) / 128) + 1 = 311
+        frame_count = floor((23936 - 256) / 128) + 1 = 186
         """
 
         segment_samples = int(self.segment_seconds * self.sample_rate)

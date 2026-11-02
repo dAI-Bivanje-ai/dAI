@@ -44,6 +44,46 @@ def load_session(bin_file):
 SEGMENT_LENGTH = 2  # vsak segment predstavlja približno 1 sekundo posnetka, 50% overlap -> 3s z SEGMENT_LENGTH = 2
 
 
+def image_seconds(window_size, fvz):
+    """
+    Koliko sekund je med začetkoma dveh zaporednih IMU slik.
+
+    Ena slika = SEGMENT_LENGTH frame-ov, frame-i so zamaknjeni za pol okna.
+    ACC:  2 * 24 / 24.7 Hz  = 1.94 s
+    GYRO: 2 * 106 / 105.6 Hz = 2.01 s
+    """
+    step = round(window_size * 0.5)  # isti korak kot v window_signal_seconds
+    return SEGMENT_LENGTH * step / fvz
+
+
+def pair_by_time(segs_acc, segs_gyro, acc_image_seconds, gyro_image_seconds):
+    """
+    Vsaki GYRO sliki poišče ACC sliko, ki se začne ob (skoraj) istem času.
+
+    ACC slike si sledijo hitreje kot GYRO (1.94 s proti 2.01 s), zato nekaj
+    ACC slik izpustimo. Če bi jih združili po indeksu, bi bila ACC in GYRO
+    polovica para po 10 minutah že ~20 s narazen.
+
+    Returns:
+        (segs_acc, segs_gyro) — enako dolga, poravnana po času
+    """
+    paired_acc = []
+    paired_gyro = []
+
+    for gyro_idx in range(len(segs_gyro)):
+        start = gyro_idx * gyro_image_seconds
+        acc_idx = round(start / acc_image_seconds)
+
+        # ACC posnetka je zmanjkalo
+        if acc_idx >= len(segs_acc):
+            break
+
+        paired_acc.append(segs_acc[acc_idx])
+        paired_gyro.append(segs_gyro[gyro_idx])
+
+    return np.array(paired_acc), np.array(paired_gyro)
+
+
 def build_dataset(files, log_ranges=None):
     """
     Gre čez vse datoteke, za vsako pokliče load_session,
@@ -66,16 +106,17 @@ def build_dataset(files, log_ranges=None):
         spectrograms_acc = compute_spectrograms(windows_acc)
         spectrograms_gyro = compute_spectrograms(windows_gyro)
 
-        M = min(spectrograms_acc.shape[0], spectrograms_gyro.shape[0])
-        spectrograms_acc = spectrograms_acc[:M]
-        spectrograms_gyro = spectrograms_gyro[:M]
-
         spectrograms_acc_2d = group_spectrograms(spectrograms_acc, SEGMENT_LENGTH)
         spectrograms_gyro_2d = group_spectrograms(spectrograms_gyro, SEGMENT_LENGTH)
 
-        N = min(spectrograms_acc_2d.shape[0], spectrograms_gyro_2d.shape[0])
-        spectrograms_acc_2d = spectrograms_acc_2d[:N]
-        spectrograms_gyro_2d = spectrograms_gyro_2d[:N]
+        # ACC in GYRO sliko združimo po času, ne po indeksu
+        spectrograms_acc_2d, spectrograms_gyro_2d = pair_by_time(
+            spectrograms_acc_2d,
+            spectrograms_gyro_2d,
+            image_seconds(ACC_W, fvz_acc),
+            image_seconds(GYRO_W, fvz_gyro),
+        )
+        N = spectrograms_gyro_2d.shape[0]
 
         labels = np.full(N, label)
 

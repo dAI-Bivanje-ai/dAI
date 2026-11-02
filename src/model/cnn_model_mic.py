@@ -18,8 +18,8 @@ class Branch(nn.Module):
     1D vektor.
     """
 
-    # v vhod pride tak (batch, 1, 129, 62)
-    # 62 je cas, 129 je freq_bins, 1 ker je mono, batch -> stevilo slik
+    # v vhod pride tak (batch, 1, 129, 186)
+    # 186 je cas, 129 je freq_bins, 1 ker je mono, batch -> stevilo slik
     def __init__(self):
         """
         Sestavi konvolucijsko mrežo veje.

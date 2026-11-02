@@ -46,7 +46,7 @@ class RealtimeConfig:
     imu_window_seconds: float = 8.0
 
     # Dolžina zvočnega segmenta (mora biti enaka kot v treningu!)
-    mic_segment_seconds: float = 5.0
+    mic_segment_seconds: float = 2.992  # 23936 vzorcev = 186 frame-ov, kot pri treningu
 
     # Parametri STFT za mikrofon.
     # 0.032s pri 8000 Hz = 256 vzorcev.
@@ -152,8 +152,8 @@ NOTIFICATIONS = {
     ("TELEFON", "POGOVOR"): "Ne delaš ...",
 }
 
-# Mikrofon hrani zadnjih 5 sekund zvoka.
-# 5 s * 8000 Hz = 40000 vzorcev.
+# Mikrofon hrani zadnjih ~3 sekunde zvoka (en segment).
+# 2.992 s * 8000 Hz = 23936 vzorcev.
 MIC_MAXLEN = int(CONFIG.mic_segment_seconds * CONFIG.mic_sample_rate)
 
 

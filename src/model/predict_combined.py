@@ -13,7 +13,12 @@ import torch
 
 from src.model.cnn_model import load_imu_checkpoint
 from src.model.cnn_model_mic import CNNModel as MicModel
-from src.preprocessing.dataset_builder import load_session, SEGMENT_LENGTH
+from src.preprocessing.dataset_builder import (
+    load_session,
+    SEGMENT_LENGTH,
+    image_seconds,
+    pair_by_time,
+)
 from src.preprocessing.dataset_builder_mic import load_session_mic
 from src.preprocessing.windower import window_signal_seconds
 from src.preprocessing.stft import (
@@ -33,8 +38,8 @@ IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
 MIC_CLASSES = {0: "GLASBA", 1: "POGOVOR"}
 
 RMS_THRESHOLD = 0.01
-SEG_FRAMES = 311
-MIC_SEG_SEC = 5
+SEG_FRAMES = 186
+MIC_SEG_SEC = 2.992  # 23936 vzorcev = 186 frame-ov, kot pri treningu
 
 
 NOTIFICATIONS = {
@@ -56,7 +61,8 @@ def _imu_predictions(bin_file):
         bin_file: str — pot do .bin seje
 
     Returns:
-        list[int] — napovedani razredi po segmentih
+        tuple(list[int], float) — napovedani razredi po segmentih in
+        čas med začetkoma dveh zaporednih napovedi v sekundah
     """
     fvz_acc, sig_acc, fvz_gyro, sig_gyro = load_session(bin_file)
 
@@ -66,17 +72,18 @@ def _imu_predictions(bin_file):
     specs_acc = compute_spectrograms(windows_acc)
     specs_gyro = compute_spectrograms(windows_gyro)
 
-    M = min(specs_acc.shape[0], specs_gyro.shape[0])
-
-    specs_acc = specs_acc[:M]
-    specs_gyro = specs_gyro[:M]
-
     segs_acc = group_spectrograms(specs_acc, SEGMENT_LENGTH)
     segs_gyro = group_spectrograms(specs_gyro, SEGMENT_LENGTH)
 
-    N = min(segs_acc.shape[0], segs_gyro.shape[0])
-    segs_acc = segs_acc[:N].astype(np.float32)
-    segs_gyro = segs_gyro[:N].astype(np.float32)
+    # ACC in GYRO sliko združimo po času, ne po indeksu (kot pri treningu)
+    gyro_image_seconds = image_seconds(211, fvz_gyro)
+    segs_acc, segs_gyro = pair_by_time(
+        segs_acc, segs_gyro, image_seconds(49, fvz_acc), gyro_image_seconds
+    )
+
+    N = segs_gyro.shape[0]
+    segs_acc = segs_acc.astype(np.float32)
+    segs_gyro = segs_gyro.astype(np.float32)
 
     model, log_ranges = load_imu_checkpoint(IMU_MODEL_PATH)
 
@@ -98,12 +105,13 @@ def _imu_predictions(bin_file):
             pred = model(acc, gyro).argmax(dim=1).item()
             predictions.append(pred)
 
-    return predictions
+    # Vsaka napoved je ena GYRO slika, te se začnejo vsakih ~2.01 s
+    return predictions, gyro_image_seconds
 
 
 def _mic_predictions(bin_file):
     """
-    Vrne seznam (rms, class_or_None) — ena na 2-sekundni segment.
+    Vrne seznam (rms, class_or_None) — ena na ~3-sekundni segment.
     """
     fvz_mic, sig_mic = load_session_mic(bin_file)
     samples_per_seg = int(MIC_SEG_SEC * fvz_mic)
@@ -161,16 +169,18 @@ def predict_combined(bin_file):
     """
     print(f"Nalagam: {bin_file}\n")
 
-    imu_preds = _imu_predictions(bin_file)
+    imu_preds, imu_image_seconds = _imu_predictions(bin_file)
     mic_results = _mic_predictions(bin_file)
 
     for mic_idx, (rms, mic_class) in enumerate(mic_results):
-        t_sec = mic_idx * MIC_SEG_SEC
+        mic_start = mic_idx * MIC_SEG_SEC  # začetek mic segmenta v sekundah
+        t_sec = int(mic_start)  # int, ker {:02d} ne sprejme float
         minutes = t_sec // 60
         seconds = t_sec % 60
         time_str = f"{minutes:02d}:{seconds:02d}"
 
-        imu_idx = t_sec // SEGMENT_LENGTH
+        # IMU napoved, v kateri se začne ta mic segment
+        imu_idx = int(mic_start / imu_image_seconds)
         imu_label = IMU_CLASSES[imu_preds[imu_idx]] if imu_idx < len(imu_preds) else "?"
 
         if mic_class is None:

@@ -21,7 +21,8 @@ MODEL_PATH = ROOT_DIR / "models" / "mic_cnn.pt"
 
 
 RMS_THRESHOLD = 0.01
-SEG_FRAMES = 311
+SEG_FRAMES = 186
+SEG_SECONDS = 2.992  # 23936 vzorcev = 186 frame-ov, kot pri treningu
 
 CLASS_NAMES = {
     0: "GLASBA",
@@ -33,7 +34,7 @@ def predict_mic(bin_file):
     """
     Napove zvočni razred za vsak segment mikrofonske seje.
 
-    Sejo razdeli na 5-sekundne segmente, tihe segmente označi kot TIŠINA,
+    Sejo razdeli na ~3-sekundne segmente, tihe segmente označi kot TIŠINA,
     ostale pa predobdela v spektrograme in skozi naučen model napove razred.
 
     Args:
@@ -41,7 +42,7 @@ def predict_mic(bin_file):
     """
     fvz_mic, sig_mic = load_session_mic(bin_file)
 
-    samples_per_seg = int(5.0 * fvz_mic)
+    samples_per_seg = int(SEG_SECONDS * fvz_mic)
     n_segments = len(sig_mic) // samples_per_seg
 
     checkpoint = torch.load(str(MODEL_PATH), map_location="cpu")
@@ -60,8 +61,9 @@ def predict_mic(bin_file):
 
         rms = np.sqrt(np.mean(segment_raw**2))
 
-        minutes = (i * 5) // 60
-        seconds = (i * 5) % 60
+        t_sec = int(i * SEG_SECONDS)  # int, ker {:02d} ne sprejme float
+        minutes = t_sec // 60
+        seconds = t_sec % 60
         time_str = f"{minutes:02d}:{seconds:02d}"
 
         if rms < RMS_THRESHOLD:

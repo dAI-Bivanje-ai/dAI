@@ -46,7 +46,7 @@ def build_dataset_mic(files):
       1. Naloži in dekodira signal
       2. Razreže na 32ms STFT okna s 50% prekrivanjem -> (M, 256)
       3. Izračuna STFT frame-e -> (M, 129)
-      4. Razreže STFT na 5-sekundne segmente po 311 frame-ov -> (N, 129, 62)
+      4. Razreže STFT na ~3-sekundne segmente po 186 frame-ov -> (N, 129, 186)
       5. Doda labelo za vsak segment
 
     Na koncu: log10 normalizacija + skaliranje na [0, 1] globalno.
@@ -56,14 +56,14 @@ def build_dataset_mic(files):
 
     Returns:
         tuple: (X, y)
-            X: numpy array (N, 129, 62) — normalizirani spektrogrami
+            X: numpy array (N, 129, 186) — normalizirani spektrogrami
             y: numpy array (N,) — labele (0=glasba, 1=pogovor)
     """
     result = []
     # fvz je 8000, razrezemo na okna po 256 vzorcev (32ms), 0.5 prekrivanje(128 vzorcev), nad vsakim oknom
-    # naredimo FFT -> to je en FRAME. 62 framov skupaj -> 1s
+    # naredimo FFT -> to je en FRAME. 186 framov skupaj -> ~3s (kot ena IMU slika)
     SEG_FRAMES = (
-        62  # floor((1 * 8000 - 256) / 128) + 1 = 62, toliko framov rabimo za 1s
+        186  # 256 + 185 * 128 = 23936 vzorcev = 2.992s, toliko framov rabimo za ~3s
     )
 
     for bin_file, label in files:
@@ -78,7 +78,7 @@ def build_dataset_mic(files):
         # STFT: za vsako okno FFT -> cel spektrogram seje (M, 129)
         spectograms = compute_spectrograms_1d(windows)
 
-        # razrežemo spektrogram na 2-sekundne segmente za CNN
+        # razrežemo spektrogram na ~3-sekundne segmente za CNN
         for i in range(spectograms.shape[0] // SEG_FRAMES):
             segment = spectograms[i * SEG_FRAMES : (i + 1) * SEG_FRAMES]
             segment = segment.T  # transponiranje
@@ -91,7 +91,7 @@ def build_dataset_mic(files):
         X.append(segment)
         y.append(label)
 
-    X = np.stack(X)  # (N, 129, 62)
+    X = np.stack(X)  # (N, 129, 186)
     y = np.array(y)  # (N,)
 
     # globalna log10 normalizacija + skaliranje na [0, 1]
@@ -109,7 +109,7 @@ def save_dataset(X, y, filename="dataset_mic.npz"):
     Shrani dataset na disk.
 
     Args:
-        X: numpy array (N, 129, 62)
+        X: numpy array (N, 129, 186)
         y: numpy array (N,)
         filename: ime izhodne .npz datoteke
     """

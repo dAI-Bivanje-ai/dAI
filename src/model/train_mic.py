@@ -34,28 +34,14 @@ TRAIN_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_02.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_05.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_06.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_07.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_08.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_11.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_03.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_05.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_06.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_07.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_09.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_10.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_11.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_12.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_13.bin"), 1),
 ]
 
 VAL_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_03.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_04.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_09.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_10.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_04.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_14.bin"), 1),
 ]
 
 TRAIN_NPZ = str(ROOT_DIR / "train_dataset_mic.npz")
