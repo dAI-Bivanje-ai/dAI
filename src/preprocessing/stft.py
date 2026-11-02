@@ -1,5 +1,7 @@
 import numpy as np
 
+LOG_EPSILON = 1e-10  # zato, da log10 ne vrne -inf
+
 
 def compute_spectrogram(window):
     """
@@ -66,6 +68,28 @@ def normalize_spectrogram(spec):
     S_out = np.clip(S_norm, 0, 255).astype(np.uint8)
 
     return S_out
+
+
+def compute_log_range(spectograms):
+
+    log_values = np.log10(spectograms + LOG_EPSILON)
+    log_min = np.min(log_values)
+    log_max = np.max(log_values)
+
+    return float(log_min), float(log_max)
+
+
+def scale_log_spectrograms(spectrogram, log_min, log_max):
+
+    if log_max <= log_min:
+        raise ValueError("log_max mora biti vecji od log_min")
+
+    log_values = np.log10(spectrogram + LOG_EPSILON)
+    log_range = log_max - log_min
+    log_values -= log_min
+    log_values /= log_range
+    log_values = np.clip(log_values, 0, 1)
+    return log_values
 
 
 def compute_spectrograms(windows):
