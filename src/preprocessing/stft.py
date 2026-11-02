@@ -44,32 +44,6 @@ def compute_spectrogram_1d(window):
     return np.abs(freq_bins)
 
 
-def normalize_spectrogram(spec):
-    """
-    Normalizira spektrogram na vrednosti 0–255 z log skaliranjem.
-
-    Args:
-        spec: numpy array (freq_bins, 3) — surove magnitude
-
-    Returns:
-        numpy array (freq_bins, 3) dtype=uint8
-    """
-
-    S_log = 10 * np.log10(spec + 1e-10)
-
-    s_min = np.min(S_log)
-    s_max = np.max(S_log)
-
-    if s_min == s_max:
-        return np.zeros_like(spec, dtype=np.uint8)
-
-    S_norm = (S_log - s_min) / (s_max - s_min) * 255
-
-    S_out = np.clip(S_norm, 0, 255).astype(np.uint8)
-
-    return S_out
-
-
 def compute_log_range(spectograms):
 
     log_values = np.log10(spectograms + LOG_EPSILON)

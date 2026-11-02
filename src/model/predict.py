@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from src.model.cnn_model import CNNModel
+from src.model.cnn_model import CNNModel, load_imu_checkpoint
 from src.model.dataset_cnn import IMUDataset
 from src.preprocessing.dataset_builder import build_dataset, SEGMENT_LENGTH
 
@@ -40,8 +40,9 @@ def predict_sesh(bin_file):
         (bin_file, 0),
     ]
 
+    model, log_ranges = load_imu_checkpoint(MODEL_PATH)
     # y se ignorira ker pri predictingu ne rabimo labelov
-    X_acc, X_gyro, y = build_dataset(files)
+    X_acc, X_gyro, y, _ = build_dataset(files, log_ranges)
 
     # začasno hrani X_acc, X_gyro in y v temp. dataset
     np.savez(
@@ -53,15 +54,6 @@ def predict_sesh(bin_file):
 
     # pretvori začasni dataset -> tensorje
     dataset = IMUDataset(TEMP_DATASET_PATH)
-
-    # ustvari isto arhitekturo kot pri treningu
-    model = CNNModel(num_classes=2)
-
-    # naloži shranjene uteži
-    model.load_state_dict(torch.load(str(MODEL_PATH), map_location="cpu"))
-
-    # model preklopi v eval mode
-    model.eval()
 
     pred_text = []
 

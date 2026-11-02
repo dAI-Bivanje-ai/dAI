@@ -11,7 +11,7 @@ import numpy as np
 import torch
 
 
-from src.model.cnn_model import CNNModel as IMUModel
+from src.model.cnn_model import load_imu_checkpoint
 from src.model.cnn_model_mic import CNNModel as MicModel
 from src.preprocessing.dataset_builder import load_session, SEGMENT_LENGTH
 from src.preprocessing.dataset_builder_mic import load_session_mic
@@ -20,6 +20,7 @@ from src.preprocessing.stft import (
     compute_spectrograms,
     group_spectrograms,
     compute_spectrograms_1d,
+    scale_log_spectrograms,
 )
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -77,17 +78,17 @@ def _imu_predictions(bin_file):
     segs_acc = segs_acc[:N].astype(np.float32)
     segs_gyro = segs_gyro[:N].astype(np.float32)
 
-    segs_acc = np.log10(segs_acc + 1e-10)
-    segs_gyro = np.log10(segs_gyro + 1e-10)
-    segs_acc = (segs_acc - segs_acc.min()) / (segs_acc.max() - segs_acc.min())
-    segs_gyro = (segs_gyro - segs_gyro.min()) / (segs_gyro.max() - segs_gyro.min())
+    model, log_ranges = load_imu_checkpoint(IMU_MODEL_PATH)
+
+    segs_acc = scale_log_spectrograms(
+        segs_acc, log_ranges["log_min_acc"], log_ranges["log_max_acc"]
+    )
+    segs_gyro = scale_log_spectrograms(
+        segs_gyro, log_ranges["log_min_gyro"], log_ranges["log_max_gyro"]
+    )
 
     segs_acc = np.transpose(segs_acc, (0, 3, 1, 2))
     segs_gyro = np.transpose(segs_gyro, (0, 3, 1, 2))
-
-    model = IMUModel(num_classes=2)
-    model.load_state_dict(torch.load(str(IMU_MODEL_PATH), map_location="cpu"))
-    model.eval()
 
     predictions = []
     with torch.no_grad():

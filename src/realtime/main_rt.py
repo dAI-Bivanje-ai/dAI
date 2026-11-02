@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from src.model.cnn_model import CNNModel as IMUModel
+from src.model.cnn_model import CNNModel as IMUModel, load_imu_checkpoint
 from src.model.cnn_model_mic import CNNModel as MicModel
 from src.realtime.packet_parser import ID_ACC, ID_GYRO, ID_MIC, LivePacketParser
 from src.realtime.preproc_rt import MicRealtimePreprocessor, RealtimePreprocessor
@@ -157,19 +157,6 @@ NOTIFICATIONS = {
 MIC_MAXLEN = int(CONFIG.mic_segment_seconds * CONFIG.mic_sample_rate)
 
 
-def load_imu_model() -> IMUModel:
-    """
-    Naloži naučen IMU model iz datoteke.
-
-    Model uporablja ACC in GYRO spektrograme za klasifikacijo aktivnosti.
-    eval() izklopi training obnašanje, npr. dropout.
-    """
-    model = IMUModel(num_classes=2)
-    model.load_state_dict(torch.load(str(IMU_MODEL_PATH), map_location="cpu"))
-    model.eval()
-    return model
-
-
 def load_mic_model() -> tuple[MicModel, float, float]:
     """
     Naloži za mikrofon naučen model.
@@ -292,7 +279,7 @@ def run() -> None:
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
     # Naložimo IMU model.
-    imu_model = load_imu_model()
+    imu_model, log_ranges = load_imu_checkpoint(IMU_MODEL_PATH)
     logging.info("IMU model naložen: %s", IMU_MODEL_PATH)
 
     # Naložimo mikrofonski model in normalizacijske vrednosti.
@@ -300,7 +287,7 @@ def run() -> None:
     logging.info("Mic model naložen: %s", MIC_MODEL_PATH)
 
     # Preprocessor za ACC/GYRO pripravi spektrograme za IMU model.
-    imu_preprocessor = RealtimePreprocessor()
+    imu_preprocessor = RealtimePreprocessor(log_ranges)
     # Preprocessor za mikrofon, ki uporablja iste nastavitve kot training.
     mic_preprocessor = MicRealtimePreprocessor(
         log_min=log_min,
