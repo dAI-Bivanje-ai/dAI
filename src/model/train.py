@@ -24,12 +24,8 @@ from src.preprocessing.dataset_builder import build_dataset
 TRAIN_FILES = [
     (str(ROOT_DIR / "podatki/delo_podatki/delo_01.bin"), 0),
     (str(ROOT_DIR / "podatki/delo_podatki/delo_02.bin"), 0),
-    (str(ROOT_DIR / "podatki/delo_podatki/delo_04.bin"), 0),
-    (str(ROOT_DIR / "podatki/delo_podatki/delo_05.bin"), 0),
     (str(ROOT_DIR / "podatki/telefon_podatki/telefon_01.bin"), 1),
     (str(ROOT_DIR / "podatki/telefon_podatki/telefon_02.bin"), 1),
-    (str(ROOT_DIR / "podatki/telefon_podatki/telefon_04.bin"), 1),
-    (str(ROOT_DIR / "podatki/telefon_podatki/telefon_05.bin"), 1),
 ]
 
 VAL_FILES = [
@@ -68,8 +64,10 @@ def train():
     history = {"train_loss": [], "train_acc": [], "val_acc": []}
 
     # nalozi dataset.npz v PyTorch dataset
-    X_acc_train, X_gyro_train, y_train = build_dataset(TRAIN_FILES)
-    X_acc_val, X_gyro_val, y_val = build_dataset(VAL_FILES)
+    X_acc_train, X_gyro_train, y_train, log_ranges = build_dataset(
+        TRAIN_FILES
+    )  # tu ne uporabimo log_ranges, log_ranges = None tu in gre v if za racunanje log_min in log_max
+    X_acc_val, X_gyro_val, y_val, log_ranges = build_dataset(VAL_FILES, log_ranges)
 
     np.savez(TRAIN_NPZ, X_acc=X_acc_train, X_gyro=X_gyro_train, y=y_train)
     np.savez(VAL_NPZ, X_acc=X_acc_val, X_gyro=X_gyro_val, y=y_val)
@@ -208,9 +206,13 @@ def train():
     with open(ROOT_DIR / "models" / "history.json", "w") as f:
         json.dump(history, f)
 
-    # shrani naučene uteži modela -> state_dict - slovar vseh naučenih parametrov
+    # shrani uteži in min/max iz treninga v eno datoteko (enako kot mic_cnn.pt)
+    checkpoint = {
+        "model": model.state_dict(),
+        "log_ranges": log_ranges,
+    }
     torch.save(
-        model.state_dict(),
+        checkpoint,
         str(ROOT_DIR / "models" / "imu_cnn.pt"),
     )
 

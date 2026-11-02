@@ -124,3 +124,11 @@ class CNNModel(nn.Module):
         )
         # iz združenih značilk classifier napove aktivnost
         return self.classifier(combined)
+
+
+def load_imu_checkpoint(path):
+    checkpoint = torch.load(path, map_location="cpu")
+    model = CNNModel(num_classes=2)
+    model.load_state_dict(checkpoint["model"])
+    model.eval()
+    return model, checkpoint["log_ranges"]

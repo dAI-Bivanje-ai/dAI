@@ -3,7 +3,12 @@ import numpy as np
 from src.visualization.data_visualizer import pripravi_pakete, sestavi_podatke
 from src.data_logger.data_logger import DataLogger
 from src.preprocessing.windower import window_signal_seconds
-from src.preprocessing.stft import compute_spectrograms, group_spectrograms
+from src.preprocessing.stft import (
+    compute_spectrograms,
+    group_spectrograms,
+    compute_log_range,
+    scale_log_spectrograms,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
@@ -39,11 +44,11 @@ def load_session(bin_file):
 SEGMENT_LENGTH = 2  # vsak segment predstavlja približno 1 sekundo posnetka, 50% overlap -> 3s z SEGMENT_LENGTH = 2
 
 
-def build_dataset(files):
+def build_dataset(files, log_ranges=None):
     """
     Gre čez vse datoteke, za vsako pokliče load_session,
     windower in stft, doda labele.
-    Vrne (X_acc, X_gyro, y).
+    Vrne (X_acc, X_gyro, y, log_ranges).
     """
     all_acc = []
     all_gyro = []
@@ -82,15 +87,25 @@ def build_dataset(files):
     X_gyro = np.concatenate(all_gyro, axis=0)
     y = np.concatenate(all_y, axis=0)
 
-    # log normalizacija
-    X_acc = np.log10(X_acc + 1e-10)
-    X_gyro = np.log10(X_gyro + 1e-10)
+    # ce to velja pomeni, da smo v treningu
+    if log_ranges is None:
+        log_min_acc, log_max_acc = compute_log_range(X_acc)
+        log_min_gyro, log_max_gyro = compute_log_range(X_gyro)
+        log_ranges = {
+            "log_min_acc": log_min_acc,
+            "log_max_acc": log_max_acc,
+            "log_min_gyro": log_min_gyro,
+            "log_max_gyro": log_max_gyro,
+        }
 
-    # skaliranje na [0 - 1]
-    X_acc = (X_acc - X_acc.min()) / (X_acc.max() - X_acc.min())
-    X_gyro = (X_gyro - X_gyro.min()) / (X_gyro.max() - X_gyro.min())
+    X_acc = scale_log_spectrograms(
+        X_acc, log_ranges["log_min_acc"], log_ranges["log_max_acc"]
+    )
+    X_gyro = scale_log_spectrograms(
+        X_gyro, log_ranges["log_min_gyro"], log_ranges["log_max_gyro"]
+    )
 
-    return X_acc, X_gyro, y
+    return X_acc, X_gyro, y, log_ranges
 
 
 def save_dataset(X_acc, X_gyro, y, filename="dataset.npz"):
@@ -108,7 +123,7 @@ if __name__ == "__main__":
         (str(ROOT_DIR / "podatki/delo_podatki/delo_03.bin"), 1),
     ]
 
-    X_acc, X_gyro, y = build_dataset(files)
+    X_acc, X_gyro, y, log_ranges = build_dataset(files)
 
     save_dataset(
         X_acc,

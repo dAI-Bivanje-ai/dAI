@@ -1,5 +1,7 @@
 import numpy as np
 
+LOG_EPSILON = 1e-10  # zato, da log10 ne vrne -inf
+
 
 def compute_spectrogram(window):
     """
@@ -42,30 +44,26 @@ def compute_spectrogram_1d(window):
     return np.abs(freq_bins)
 
 
-def normalize_spectrogram(spec):
-    """
-    Normalizira spektrogram na vrednosti 0–255 z log skaliranjem.
+def compute_log_range(spectograms):
 
-    Args:
-        spec: numpy array (freq_bins, 3) — surove magnitude
+    log_values = np.log10(spectograms + LOG_EPSILON)
+    log_min = np.min(log_values)
+    log_max = np.max(log_values)
 
-    Returns:
-        numpy array (freq_bins, 3) dtype=uint8
-    """
+    return float(log_min), float(log_max)
 
-    S_log = 10 * np.log10(spec + 1e-10)
 
-    s_min = np.min(S_log)
-    s_max = np.max(S_log)
+def scale_log_spectrograms(spectrogram, log_min, log_max):
 
-    if s_min == s_max:
-        return np.zeros_like(spec, dtype=np.uint8)
+    if log_max <= log_min:
+        raise ValueError("log_max mora biti vecji od log_min")
 
-    S_norm = (S_log - s_min) / (s_max - s_min) * 255
-
-    S_out = np.clip(S_norm, 0, 255).astype(np.uint8)
-
-    return S_out
+    log_values = np.log10(spectrogram + LOG_EPSILON)
+    log_range = log_max - log_min
+    log_values -= log_min
+    log_values /= log_range
+    log_values = np.clip(log_values, 0, 1)
+    return log_values
 
 
 def compute_spectrograms(windows):

@@ -16,7 +16,7 @@ from src.preprocessing.stft import (
     compute_spectrograms,
     compute_spectrograms_1d,
     group_spectrograms,
-    normalize_spectrogram,
+    scale_log_spectrograms,
 )
 from src.preprocessing.windower import window_signal, window_signal_seconds
 
@@ -34,7 +34,7 @@ class RealtimePreprocessor:
         gyro_spec -> zadnji GYRO spektrogramski segment
     """
 
-    def __init__(self) -> None:
+    def __init__(self, log_ranges: dict) -> None:
         """
         Nastavi velikosti FFT oken in dolžino segmenta, enake kot pri učenju.
         """
@@ -44,6 +44,7 @@ class RealtimePreprocessor:
 
         # Koliko zaporednih spektrogramov sestavlja en 2D segment.
         self.segment_length = SEGMENT_LENGTH
+        self.log_ranges = log_ranges  # min max iz treninga, tu uporabimo za normalizacijo, isto kot pa pri mikrofonu
 
     def process(
         self,
@@ -69,9 +70,13 @@ class RealtimePreprocessor:
         if acc_spec is None or gyro_spec is None:
             return None
 
-        # Uporabimo obstoječo normalizacijo iz stft.py
-        acc_spec = normalize_spectrogram(acc_spec)
-        gyro_spec = normalize_spectrogram(gyro_spec)
+        # Uporabimo normalizacijo z log_min in log_max (isti vrednosti med treningom tudi tu)
+        acc_spec = scale_log_spectrograms(
+            acc_spec, self.log_ranges["log_min_acc"], self.log_ranges["log_max_acc"]
+        )
+        gyro_spec = scale_log_spectrograms(
+            gyro_spec, self.log_ranges["log_min_gyro"], self.log_ranges["log_max_gyro"]
+        )
 
         # Model pričakuje PyTorch tensor oblike:
         # (batch, channels, freq, time)
