@@ -8,10 +8,10 @@ za vsak segment izpiše napovedano aktivnost skupaj s časovno oznako.
 import numpy as np
 import torch
 
-from src.config import IMU_CLASSES, IMU_FRAMES_PER_IMAGE, IMU_MODEL_PATH, ROOT_DIR
+from src.config import GYRO_FFT_WINDOW, IMU_CLASSES, IMU_MODEL_PATH, ROOT_DIR
 from src.model.cnn_model import CNNModel, load_imu_checkpoint
 from src.model.dataset_cnn import IMUDataset
-from src.preprocessing.dataset_builder import build_dataset
+from src.preprocessing.dataset_builder import build_dataset, image_seconds, load_session
 
 TEMP_DATASET_PATH = ROOT_DIR / "temp_predict_dataset.npz"
 
@@ -34,6 +34,10 @@ def predict_sesh(bin_file):
     model, log_ranges = load_imu_checkpoint(IMU_MODEL_PATH)
     # y se ignorira ker pri predictingu ne rabimo labelov
     X_acc, X_gyro, y, _ = build_dataset(files, log_ranges)
+
+    # prava fvz giroskopa, da vemo, kdaj se začne vsaka slika (~2.01 s narazen)
+    _, _, fvz_gyro, _ = load_session(bin_file)
+    gyro_image_seconds = image_seconds(GYRO_FFT_WINDOW, fvz_gyro)
 
     # začasno hrani X_acc, X_gyro in y v temp. dataset
     np.savez(
@@ -69,7 +73,7 @@ def predict_sesh(bin_file):
             pred = output.argmax(dim=1).item()
 
             # številčni razred v besedo
-            total_sec = i * IMU_FRAMES_PER_IMAGE
+            total_sec = int(i * gyro_image_seconds)  # dobimo natančen čas
             minutes = total_sec // 60
             seconds = total_sec % 60
 
