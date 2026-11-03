@@ -13,14 +13,16 @@ from collections.abc import Iterator
 import serial
 import serial.tools.list_ports
 
-# USB identifikator STM32 Virtual COM port-a
-# lsusb
-STM32_VID = "0483"
-STM32_PID = "5740"
-# hitrost
-DEFAULT_BAUDRATE = 115200
-# koliko B prebere naenkrat
-READ_SIZE = 2048
+from src.config import (
+    SERIAL_BAUDRATE,
+    SERIAL_COMMAND_DELAY_SECONDS,
+    SERIAL_READ_SIZE,
+    SERIAL_RECONNECT_DELAY_SECONDS,
+    SERIAL_STREAM_DELAY_SECONDS,
+    SERIAL_TIMEOUT_SECONDS,
+    STM32_PID,
+    STM32_VID,
+)
 
 
 class LiveSerialReader:
@@ -35,12 +37,12 @@ class LiveSerialReader:
     - ob odklopu ne pade
     """
 
-    def __init__(self, baudrate: int = DEFAULT_BAUDRATE) -> None:
+    def __init__(self, baudrate: int = SERIAL_BAUDRATE) -> None:
         """
         Inicializira reader brez aktivne povezave.
 
         Args:
-            baudrate: int — hitrost serijske povezave (privzeto 115200)
+            baudrate: int - hitrost serijske povezave (privzeto 115200)
         """
         self.baudrate = baudrate
         self.port: str | None = None
@@ -84,7 +86,7 @@ class LiveSerialReader:
             self.connection = serial.Serial(
                 detected_port,
                 self.baudrate,
-                timeout=1,
+                timeout=SERIAL_TIMEOUT_SECONDS,
             )
             # shrani port
             self.port = detected_port
@@ -119,30 +121,30 @@ class LiveSerialReader:
 
         # ustavimo morebitni prejšnji stream
         self.connection.write(b"OFF\r\n")
-        time.sleep(0.5)
+        time.sleep(SERIAL_STREAM_DELAY_SECONDS)
 
         # vklopimo giroskop
         self.connection.write(b"CONFIG gyro 1\r\n")
-        time.sleep(0.1)
+        time.sleep(SERIAL_COMMAND_DELAY_SECONDS)
 
         # vklopimo pospeškometer
         self.connection.write(b"CONFIG accel 1\r\n")
-        time.sleep(0.1)
+        time.sleep(SERIAL_COMMAND_DELAY_SECONDS)
 
         # Magnetometra ne rabimo.
         self.connection.write(b"CONFIG mag 0\r\n")
-        time.sleep(0.1)
+        time.sleep(SERIAL_COMMAND_DELAY_SECONDS)
 
         # Vklopimo mikrofon
         self.connection.write(b"CONFIG mic 1\r\n")
-        time.sleep(0.1)
+        time.sleep(SERIAL_COMMAND_DELAY_SECONDS)
 
         # počistimo stare podatke v bufferju
         self.connection.reset_input_buffer()
 
         # zaženemo stream
         self.connection.write(b"STREAM\r\n")
-        time.sleep(0.5)
+        time.sleep(SERIAL_STREAM_DELAY_SECONDS)
 
         # ponovno počistimo buffer
         self.connection.reset_input_buffer()
@@ -155,7 +157,7 @@ class LiveSerialReader:
             self.connection.write(b"OFF\r\n")
             logging.info("STM32 stream ustavljen.")
 
-    def read_chunk(self, size: int = READ_SIZE) -> bytes:
+    def read_chunk(self, size: int = SERIAL_READ_SIZE) -> bytes:
         """
         Prebere blok surovih bajtov.
 
@@ -181,7 +183,7 @@ class LiveSerialReader:
             if not self.is_connected():
                 # poskus povezave
                 if not self.connect():
-                    time.sleep(1)
+                    time.sleep(SERIAL_RECONNECT_DELAY_SECONDS)
                     continue
 
                 try:
@@ -190,7 +192,7 @@ class LiveSerialReader:
                 except (RuntimeError, serial.SerialException) as exc:
                     logging.error("Napaka pri zagonu streama: %s", exc)
                     self.disconnect()
-                    time.sleep(1)
+                    time.sleep(SERIAL_RECONNECT_DELAY_SECONDS)
                     continue
 
             try:
@@ -203,7 +205,7 @@ class LiveSerialReader:
             except serial.SerialException as exc:
                 logging.error("Napaka pri branju ali odklop STM32: %s", exc)
                 self.disconnect()
-                time.sleep(1)
+                time.sleep(SERIAL_RECONNECT_DELAY_SECONDS)
 
     def stop(self) -> None:
         """Ustavi reader."""

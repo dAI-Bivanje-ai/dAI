@@ -6,16 +6,33 @@ mikrofonski razred (glasba / pogovor / tišina), oba rezultata poravna po
 času in po potrebi izpiše ustrezno opozorilo.
 """
 
-from pathlib import Path
 import numpy as np
 import torch
 
-
+from src.config import (
+    ACC_FFT_WINDOW,
+    GYRO_FFT_WINDOW,
+    IMU_CLASSES,
+    IMU_FFT_OVERLAP,
+    IMU_FRAMES_PER_IMAGE,
+    IMU_MODEL_PATH,
+    LOG_EPSILON,
+    MIC_CLASSES,
+    MIC_FRAMES_PER_IMAGE,
+    MIC_IMAGE_SECONDS,
+    MIC_MODEL_PATH,
+    MIC_RMS_SILENCE_THRESHOLD,
+    MIC_STFT_OVERLAP,
+    MIC_STFT_WINDOW_SECONDS,
+    NOTIFICATIONS,
+    NUM_MIC_CLASSES,
+    ROOT_DIR,
+    SILENCE_LABEL,
+)
 from src.model.cnn_model import load_imu_checkpoint
 from src.model.cnn_model_mic import CNNModel as MicModel
 from src.preprocessing.dataset_builder import (
     load_session,
-    SEGMENT_LENGTH,
     image_seconds,
     pair_by_time,
 )
@@ -28,57 +45,40 @@ from src.preprocessing.stft import (
     scale_log_spectrograms,
 )
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-
-
-IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
-MIC_MODEL_PATH = ROOT_DIR / "models" / "mic_cnn.pt"
-
-IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
-MIC_CLASSES = {0: "GLASBA", 1: "POGOVOR"}
-
-RMS_THRESHOLD = 0.01
-SEG_FRAMES = 186
-MIC_SEG_SEC = 2.992  # 23936 vzorcev = 186 frame-ov, kot pri treningu
-
-
-NOTIFICATIONS = {
-    ("DELO", "GLASBA"): "Delaš, ampak glasba je preglasna",
-    ("DELO", "POGOVOR"): "Delaš, ampak nekdo govori v ozadju",
-    ("TELEFON", "GLASBA"): "Ne delaš ...",
-    ("TELEFON", "POGOVOR"): "Ne delaš ...",
-}
-
 
 def _imu_predictions(bin_file):
     """
-    Vrne seznam IMU napovedi — ena na segment seje.
+    Vrne seznam IMU napovedi - ena na segment seje.
 
     Sejo predobdela v ACC in GYRO spektrograme, jih normalizira in skozi
     naučen IMU model napove razred za vsak segment.
 
     Args:
-        bin_file: str — pot do .bin seje
+        bin_file: str - pot do .bin seje
 
     Returns:
-        tuple(list[int], float) — napovedani razredi po segmentih in
+        tuple(list[int], float) - napovedani razredi po segmentih in
         čas med začetkoma dveh zaporednih napovedi v sekundah
     """
     fvz_acc, sig_acc, fvz_gyro, sig_gyro = load_session(bin_file)
 
-    windows_acc = window_signal_seconds(sig_acc, fvz_acc, force_W=49)
-    windows_gyro = window_signal_seconds(sig_gyro, fvz_gyro, force_W=211)
+    windows_acc = window_signal_seconds(
+        sig_acc, fvz_acc, prekrivanje=IMU_FFT_OVERLAP, force_W=ACC_FFT_WINDOW
+    )
+    windows_gyro = window_signal_seconds(
+        sig_gyro, fvz_gyro, prekrivanje=IMU_FFT_OVERLAP, force_W=GYRO_FFT_WINDOW
+    )
 
     specs_acc = compute_spectrograms(windows_acc)
     specs_gyro = compute_spectrograms(windows_gyro)
 
-    segs_acc = group_spectrograms(specs_acc, SEGMENT_LENGTH)
-    segs_gyro = group_spectrograms(specs_gyro, SEGMENT_LENGTH)
+    segs_acc = group_spectrograms(specs_acc, IMU_FRAMES_PER_IMAGE)
+    segs_gyro = group_spectrograms(specs_gyro, IMU_FRAMES_PER_IMAGE)
 
     # ACC in GYRO sliko združimo po času, ne po indeksu (kot pri treningu)
-    gyro_image_seconds = image_seconds(211, fvz_gyro)
+    gyro_image_seconds = image_seconds(GYRO_FFT_WINDOW, fvz_gyro)
     segs_acc, segs_gyro = pair_by_time(
-        segs_acc, segs_gyro, image_seconds(49, fvz_acc), gyro_image_seconds
+        segs_acc, segs_gyro, image_seconds(ACC_FFT_WINDOW, fvz_acc), gyro_image_seconds
     )
 
     N = segs_gyro.shape[0]
@@ -111,17 +111,17 @@ def _imu_predictions(bin_file):
 
 def _mic_predictions(bin_file):
     """
-    Vrne seznam (rms, class_or_None) — ena na ~3-sekundni segment.
+    Vrne seznam (rms, class_or_None) - ena na ~3-sekundni segment.
     """
     fvz_mic, sig_mic = load_session_mic(bin_file)
-    samples_per_seg = int(MIC_SEG_SEC * fvz_mic)
+    samples_per_seg = int(MIC_IMAGE_SECONDS * fvz_mic)
     n_segments = len(sig_mic) // samples_per_seg
 
     checkpoint = torch.load(str(MIC_MODEL_PATH), map_location="cpu")
     log_min = checkpoint["log_min"]
     log_max = checkpoint["log_max"]
 
-    model = MicModel(num_classes=2)
+    model = MicModel(num_classes=NUM_MIC_CLASSES)
     model.load_state_dict(checkpoint["model"])
     model.eval()
 
@@ -132,21 +132,24 @@ def _mic_predictions(bin_file):
             segment_raw = sig_mic[start : start + samples_per_seg]
             rms = np.sqrt(np.mean(segment_raw**2))
 
-            if rms < RMS_THRESHOLD:
+            if rms < MIC_RMS_SILENCE_THRESHOLD:
                 results.append((rms, None))
                 continue
 
             windows = window_signal_seconds(
-                segment_raw, fvz_mic, T_window=0.032, prekrivanje=0.5
+                segment_raw,
+                fvz_mic,
+                T_window=MIC_STFT_WINDOW_SECONDS,
+                prekrivanje=MIC_STFT_OVERLAP,
             )
             spectrograms = compute_spectrograms_1d(windows)
 
-            if spectrograms.shape[0] < SEG_FRAMES:
+            if spectrograms.shape[0] < MIC_FRAMES_PER_IMAGE:
                 results.append((rms, None))
                 continue
 
-            spec = spectrograms[:SEG_FRAMES].T
-            spec = np.log10(spec + 1e-10)
+            spec = spectrograms[:MIC_FRAMES_PER_IMAGE].T
+            spec = np.log10(spec + LOG_EPSILON)
             spec = (spec - log_min) / (log_max - log_min)
             spec = np.clip(spec, 0.0, 1.0)
 
@@ -165,7 +168,7 @@ def predict_combined(bin_file):
     izpiše obe oznaki, glasnost (rms) ter morebitno opozorilo.
 
     Args:
-        bin_file: str — pot do .bin seje
+        bin_file: str - pot do .bin seje
     """
     print(f"Nalagam: {bin_file}\n")
 
@@ -173,7 +176,7 @@ def predict_combined(bin_file):
     mic_results = _mic_predictions(bin_file)
 
     for mic_idx, (rms, mic_class) in enumerate(mic_results):
-        mic_start = mic_idx * MIC_SEG_SEC  # začetek mic segmenta v sekundah
+        mic_start = mic_idx * MIC_IMAGE_SECONDS  # začetek mic segmenta v sekundah
         t_sec = int(mic_start)  # int, ker {:02d} ne sprejme float
         minutes = t_sec // 60
         seconds = t_sec % 60
@@ -184,7 +187,7 @@ def predict_combined(bin_file):
         imu_label = IMU_CLASSES[imu_preds[imu_idx]] if imu_idx < len(imu_preds) else "?"
 
         if mic_class is None:
-            print(f"{time_str}  IMU={imu_label}  MIC=TIŠINA  (rms={rms:.4f})")
+            print(f"{time_str}  IMU={imu_label}  MIC={SILENCE_LABEL}  (rms={rms:.4f})")
             continue
 
         mic_label = MIC_CLASSES[mic_class]

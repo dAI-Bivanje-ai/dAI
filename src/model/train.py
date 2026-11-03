@@ -6,16 +6,13 @@ Modul iz seznama sej zgradi učni in validacijski dataset, izvede učno zanko
 uteži in zgodovino učenja.
 """
 
-from pathlib import Path
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-
 import torch
 import torch.nn as nn
 import numpy as np
 import json
 from torch.utils.data import DataLoader
 
+from src.config import IMU_MODEL_PATH, MODELS_DIR, NUM_IMU_CLASSES, ROOT_DIR
 from src.model.cnn_model import CNNModel
 from src.model.dataset_cnn import IMUDataset
 from src.preprocessing.dataset_builder import build_dataset
@@ -34,8 +31,6 @@ VAL_FILES = [
 ]
 
 
-# trenutno 2 razreda delo/telefon
-NUM_CLASSES = 2
 # uteži se posodobijo po 16 primerih
 BATCH_SIZE = 16
 # prehodi čez training podatke
@@ -43,6 +38,8 @@ EPOCHS = 25
 # velikost koraka pri popravljanju uteži
 # 0.001 je običajna začetna vrednost za Adam opt.
 LEARNING_RATE = 0.001
+# koliko procesov vzporedno pripravlja batch-e
+NUM_WORKERS = 2
 
 TRAIN_NPZ = str(ROOT_DIR / "train_dataset.npz")
 VAL_NPZ = str(ROOT_DIR / "val_dataset.npz")
@@ -64,9 +61,9 @@ def train():
     history = {"train_loss": [], "train_acc": [], "val_acc": []}
 
     # nalozi dataset.npz v PyTorch dataset
-    X_acc_train, X_gyro_train, y_train, log_ranges = build_dataset(
-        TRAIN_FILES
-    )  # tu ne uporabimo log_ranges, log_ranges = None tu in gre v if za racunanje log_min in log_max
+    # tu ne podamo log_ranges, zato je None in build_dataset izračuna log_min in log_max
+    X_acc_train, X_gyro_train, y_train, log_ranges = build_dataset(TRAIN_FILES)
+    # val uporabi iste log_ranges kot trening
     X_acc_val, X_gyro_val, y_val, log_ranges = build_dataset(VAL_FILES, log_ranges)
 
     np.savez(TRAIN_NPZ, X_acc=X_acc_train, X_gyro=X_gyro_train, y=y_train)
@@ -81,7 +78,7 @@ def train():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=2,
+        num_workers=NUM_WORKERS,
         pin_memory=torch.cuda.is_available(),
     )
 
@@ -90,13 +87,13 @@ def train():
         val_dataset,
         batch_size=BATCH_SIZE,
         shuffle=False,
-        num_workers=2,
+        num_workers=NUM_WORKERS,
         pin_memory=torch.cuda.is_available(),
     )
 
     # ustvari cnn model
-    # NUM_CLASSES = 2 model bo imel 2 outputa - score za delo/telfon
-    model = CNNModel(num_classes=NUM_CLASSES).to(device)
+    # NUM_IMU_CLASSES = 2 model bo imel 2 outputa - score za delo/telfon
+    model = CNNModel(num_classes=NUM_IMU_CLASSES).to(device)
 
     # standardna loss funkcija za klasifikacijo
     # primerja output modela z dejanskim label-om
@@ -201,9 +198,9 @@ def train():
             f"val_acc={val_acc:.3f}"
         )
     # ustvari mapo models
-    (ROOT_DIR / "models").mkdir(exist_ok=True)
+    MODELS_DIR.mkdir(exist_ok=True)
 
-    with open(ROOT_DIR / "models" / "history.json", "w") as f:
+    with open(MODELS_DIR / "history.json", "w") as f:
         json.dump(history, f)
 
     # shrani uteži in min/max iz treninga v eno datoteko (enako kot mic_cnn.pt)
@@ -213,10 +210,10 @@ def train():
     }
     torch.save(
         checkpoint,
-        str(ROOT_DIR / "models" / "imu_cnn.pt"),
+        str(IMU_MODEL_PATH),
     )
 
-    print(f"Model shranjen v {ROOT_DIR / 'models' / 'imu_cnn.pt'}")
+    print(f"Model shranjen v {IMU_MODEL_PATH}")
 
 
 if __name__ == "__main__":

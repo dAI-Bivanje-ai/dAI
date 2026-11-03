@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.config import CHUNK_ID_MIC, MIC_SAMPLE_RATE
 from src.data_logger.data_logger import DataLogger
 
 
@@ -47,7 +48,7 @@ def sestavi_podatke_mic(seznam_paketov: list[Paket]) -> tuple[float, np.ndarray]
     Sestavi mikrofon signal iz seznama paketov.
 
     Filtrira pakete z id == 4 (chunk 0x04) in konkatenira vzorce
-    v en 1D signal. Fvz je fiksna 8000 Hz — določena s strojno opremo,
+    v en 1D signal. Fvz je fiksna 8000 Hz - določena s strojno opremo,
     ne ocenjena iz časovnih razmikov med paketi.
 
     Args:
@@ -55,13 +56,13 @@ def sestavi_podatke_mic(seznam_paketov: list[Paket]) -> tuple[float, np.ndarray]
 
     Returns:
         tuple: (8000.0, signal)
-            signal: numpy array (N,) — surovi int8 A-law vzorci
+            signal: numpy array (N,) - surovi int8 A-law vzorci
     """
-    packets = [p for p in seznam_paketov if p.id == 4]
+    packets = [p for p in seznam_paketov if p.id == CHUNK_ID_MIC]
 
     result = np.concatenate([p.data for p in packets])
 
-    return 8000.0, result
+    return MIC_SAMPLE_RATE, result
 
 
 def prikazi_signal(
