@@ -6,22 +6,16 @@ Modul iz seznama sej zgradi učni in validacijski dataset, izvede učno zanko
 uteži (skupaj z normalizacijskimi parametri) in zgodovino učenja.
 """
 
-from pathlib import Path
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-
 import torch
 import torch.nn as nn
 import numpy as np
 import json
 from torch.utils.data import DataLoader
 
+from src.config import MIC_MODEL_PATH, MODELS_DIR, NUM_MIC_CLASSES, ROOT_DIR
 from src.model.cnn_model_mic import CNNModel
 from src.model.dataset_cnn_mic import MicDataset
 from src.preprocessing.dataset_builder_mic import build_dataset_mic
-
-# glasba, pogovorsssss
-NUM_CLASSES = 2
 
 BATCH_SIZE = 16
 
@@ -34,28 +28,14 @@ TRAIN_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_02.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_05.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_06.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_07.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_08.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_11.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_02.bin"), 1),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_03.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_05.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_06.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_07.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_09.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_10.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_11.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_12.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_13.bin"), 1),
 ]
 
 VAL_FILES = [
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_03.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/glasba_04.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_09.bin"), 0),
-    (str(ROOT_DIR / "podatki/mic_podatki/glasba_10.bin"), 0),
     (str(ROOT_DIR / "podatki/mic_podatki/pogovor_04.bin"), 1),
-    (str(ROOT_DIR / "podatki/mic_podatki/pogovor_14.bin"), 1),
 ]
 
 TRAIN_NPZ = str(ROOT_DIR / "train_dataset_mic.npz")
@@ -86,7 +66,7 @@ def train():
 
     val_loader_mic = DataLoader(val_dataset_mic, batch_size=BATCH_SIZE, shuffle=False)
 
-    model = CNNModel(num_classes=NUM_CLASSES)
+    model = CNNModel(num_classes=NUM_MIC_CLASSES)
 
     loss_fn = nn.CrossEntropyLoss()
 
@@ -152,9 +132,9 @@ def train():
             f"val_acc={val_acc:.3f}"
         )
 
-    (ROOT_DIR / "models").mkdir(exist_ok=True)
+    MODELS_DIR.mkdir(exist_ok=True)
 
-    with open(ROOT_DIR / "models" / "history_mic.json", "w") as f:
+    with open(MODELS_DIR / "history_mic.json", "w") as f:
         json.dump(history, f)
 
     torch.save(
@@ -163,10 +143,10 @@ def train():
             "log_min": log_min,
             "log_max": log_max,
         },
-        str(ROOT_DIR / "models" / "mic_cnn.pt"),
+        str(MIC_MODEL_PATH),
     )
 
-    print(f"Model shranjen v {ROOT_DIR / 'models' / 'mic_cnn.pt'}")
+    print(f"Model shranjen v {MIC_MODEL_PATH}")
 
 
 if __name__ == "__main__":

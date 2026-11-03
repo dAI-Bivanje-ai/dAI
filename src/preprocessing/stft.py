@@ -1,6 +1,6 @@
 import numpy as np
 
-LOG_EPSILON = 1e-10  # zato, da log10 ne vrne -inf
+from src.config import IMU_AXES, LOG_EPSILON
 
 
 def compute_spectrogram(window):
@@ -8,13 +8,13 @@ def compute_spectrogram(window):
     Iz enega okna naredi spektrogram.
 
     Args:
-        window: numpy array (W, 3) — eno okno, 3 kanali
+        window: numpy array (W, 3) - eno okno, 3 kanali
 
     Returns:
-        numpy array (freq_bins, 3) — surove magnitude
+        numpy array (freq_bins, 3) - surove magnitude
     """
     window_result = []
-    for axis in range(3):
+    for axis in range(IMU_AXES):
 
         signal_1d = window[:, axis]
 
@@ -34,10 +34,10 @@ def compute_spectrogram_1d(window):
     Iz enega okna naredi spektrogram za 1D signal (mikrofon).
 
     Args:
-        window: numpy array (W,) — eno okno
+        window: numpy array (W,) - eno okno
 
     Returns:
-        numpy array (W//2 + 1,) — surove magnitude, npr. (129,) za W=256
+        numpy array (W//2 + 1,) - surove magnitude, npr. (129,) za W=256
     """
     hann = np.hanning(len(window))
     freq_bins = np.fft.rfft(window * hann)
@@ -89,15 +89,15 @@ def compute_spectrograms_1d(windows):
     """
     Naredi STFT frame-e za vsa okna 1D signala (mikrofon).
 
-    Izhod je celoten STFT spektrogram seje — vsaka vrstica je en
+    Izhod je celoten STFT spektrogram seje - vsaka vrstica je en
     časovni korak (32 ms), stolpci so frekvenčni bini.
     Za CNN vhod je treba izhod še razrezati na fiksne segmente.
 
     Args:
-        windows: numpy array (M, W) — vsa okna ene seje
+        windows: numpy array (M, W) - vsa okna ene seje
 
     Returns:
-        numpy array (M, W//2 + 1) — npr. (M, 129) za W=256
+        numpy array (M, W//2 + 1) - npr. (M, 129) za W=256
     """
     result = []
     for window in windows:
@@ -116,8 +116,8 @@ def group_spectrograms(spectrograms, segment_length):
     x os predstavlja čas, y os pa frekvenco.
 
     Args:
-        spectrograms: numpy array (M, freq_bins, 3) — izhod compute_spectrograms()
-        segment_length: int — število zaporednih spektrogramov v enem 2D spektrogramu
+        spectrograms: numpy array (M, freq_bins, 3) - izhod compute_spectrograms()
+        segment_length: int - število zaporednih spektrogramov v enem 2D spektrogramu
 
     Returns:
         numpy array (N, freq_bins, segment_length, 3) dtype=uint8

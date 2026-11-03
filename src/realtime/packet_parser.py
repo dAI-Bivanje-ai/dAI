@@ -8,14 +8,8 @@ prek DataLoggerja in vrne kot strukturirane slovarje.
 
 import logging
 
-
+from src.config import PACKET_SYNC_MARKER, PARSER_MAX_BUFFER_BYTES
 from src.data_logger.data_logger import DataLogger
-
-SYNC = b"\xff\xff"
-
-ID_GYRO = 1
-ID_ACC = 2
-ID_MIC = 4
 
 
 class LivePacketParser:
@@ -41,12 +35,12 @@ class LivePacketParser:
     - LivePacketParser dobiva bajte po kosih iz serial porta zato mora imeti svoj buffer
     """
 
-    def __init__(self, max_buffer_size: int = 200000) -> None:
+    def __init__(self, max_buffer_size: int = PARSER_MAX_BUFFER_BYTES) -> None:
         """
         Inicializira parser z lastnim bufferjem in števci paketov.
 
         Args:
-            max_buffer_size: int — največja velikost bufferja v bajtih,
+            max_buffer_size: int - največja velikost bufferja v bajtih,
                 preden ga ob izgubi sinhronizacije počistimo
         """
         # hranjenje bajtov iz serial porta ker en read() nii nujno cel paket
@@ -112,7 +106,7 @@ class LivePacketParser:
 
         while True:
             # poišče zacetek paketa
-            start = self.buffer.find(SYNC)
+            start = self.buffer.find(PACKET_SYNC_MARKER)
 
             # če sync markerja ni, trenutni bajti niso uporabni.
             if start == -1:
@@ -124,7 +118,7 @@ class LivePacketParser:
                 del self.buffer[:start]
 
             # poišče naslednji sync marker
-            next_start = self.buffer.find(SYNC, len(SYNC))
+            next_start = self.buffer.find(PACKET_SYNC_MARKER, len(PACKET_SYNC_MARKER))
 
             # če naslednjega SM še ni, trenutni paket še ni cel
             # počakamo naslednji feed()

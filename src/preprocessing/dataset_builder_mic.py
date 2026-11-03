@@ -1,13 +1,17 @@
-from pathlib import Path
 import numpy as np
+from src.config import (
+    LOG_EPSILON,
+    MIC_FRAMES_PER_IMAGE,
+    MIC_STFT_OVERLAP,
+    MIC_STFT_WINDOW_SECONDS,
+    ROOT_DIR,
+)
 from src.visualization.data_visualizer import pripravi_pakete, sestavi_podatke_mic
 from src.data_logger.data_logger import DataLogger
 from src.preprocessing.windower import window_signal_seconds
 from src.preprocessing.stft import compute_spectrograms_1d
 from src.preprocessing.alaw import alaw_decode_all
 from src.preprocessing.filters import bandpass_mic
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def load_session_mic(bin_file):
@@ -19,8 +23,8 @@ def load_session_mic(bin_file):
 
     Returns:
         tuple: (fvz_mic, mic_signal)
-            fvz_mic: float — vzorčevalna frekvenca (8000.0 Hz)
-            mic_signal: numpy array (N,) — linearni PCM signal
+            fvz_mic: float - vzorčevalna frekvenca (8000.0 Hz)
+            mic_signal: numpy array (N,) - linearni PCM signal
     """
     logger = DataLogger()
     raw_packets = logger.parse_file(bin_file)
@@ -46,7 +50,7 @@ def build_dataset_mic(files):
       1. Naloži in dekodira signal
       2. Razreže na 32ms STFT okna s 50% prekrivanjem -> (M, 256)
       3. Izračuna STFT frame-e -> (M, 129)
-      4. Razreže STFT na 5-sekundne segmente po 311 frame-ov -> (N, 129, 62)
+      4. Razreže STFT na ~3-sekundne segmente po 186 frame-ov -> (N, 129, 186)
       5. Doda labelo za vsak segment
 
     Na koncu: log10 normalizacija + skaliranje na [0, 1] globalno.
@@ -56,15 +60,12 @@ def build_dataset_mic(files):
 
     Returns:
         tuple: (X, y)
-            X: numpy array (N, 129, 62) — normalizirani spektrogrami
-            y: numpy array (N,) — labele (0=glasba, 1=pogovor)
+            X: numpy array (N, 129, 186) - normalizirani spektrogrami
+            y: numpy array (N,) - labele (0=glasba, 1=pogovor)
     """
     result = []
     # fvz je 8000, razrezemo na okna po 256 vzorcev (32ms), 0.5 prekrivanje(128 vzorcev), nad vsakim oknom
-    # naredimo FFT -> to je en FRAME. 62 framov skupaj -> 1s
-    SEG_FRAMES = (
-        62  # floor((1 * 8000 - 256) / 128) + 1 = 62, toliko framov rabimo za 1s
-    )
+    # naredimo FFT -> to je en FRAME. 186 framov skupaj -> ~3s (kot ena IMU slika)
 
     for bin_file, label in files:
 
@@ -72,15 +73,20 @@ def build_dataset_mic(files):
 
         # razrežemo signal na 32ms okna s 50% prekrivanjem -> (M, 256)
         windows = window_signal_seconds(
-            sig_mic, fvz_mic, T_window=0.032, prekrivanje=0.5
+            sig_mic,
+            fvz_mic,
+            T_window=MIC_STFT_WINDOW_SECONDS,
+            prekrivanje=MIC_STFT_OVERLAP,
         )
 
         # STFT: za vsako okno FFT -> cel spektrogram seje (M, 129)
         spectograms = compute_spectrograms_1d(windows)
 
-        # razrežemo spektrogram na 2-sekundne segmente za CNN
-        for i in range(spectograms.shape[0] // SEG_FRAMES):
-            segment = spectograms[i * SEG_FRAMES : (i + 1) * SEG_FRAMES]
+        # razrežemo spektrogram na ~3-sekundne segmente za CNN
+        for i in range(spectograms.shape[0] // MIC_FRAMES_PER_IMAGE):
+            segment = spectograms[
+                i * MIC_FRAMES_PER_IMAGE : (i + 1) * MIC_FRAMES_PER_IMAGE
+            ]
             segment = segment.T  # transponiranje
             result.append((segment, label))
 
@@ -91,11 +97,11 @@ def build_dataset_mic(files):
         X.append(segment)
         y.append(label)
 
-    X = np.stack(X)  # (N, 129, 62)
+    X = np.stack(X)  # (N, 129, 186)
     y = np.array(y)  # (N,)
 
     # globalna log10 normalizacija + skaliranje na [0, 1]
-    X = np.log10(X + 1e-10)
+    X = np.log10(X + LOG_EPSILON)
     log_min = float(X.min())
     log_max = float(X.max())
     X = (X - log_min) / (log_max - log_min)
@@ -109,7 +115,7 @@ def save_dataset(X, y, filename="dataset_mic.npz"):
     Shrani dataset na disk.
 
     Args:
-        X: numpy array (N, 129, 62)
+        X: numpy array (N, 129, 186)
         y: numpy array (N,)
         filename: ime izhodne .npz datoteke
     """

@@ -9,8 +9,15 @@ napovedi uporabljajo iste uteži. Vrneta zadnji segment, pripravljen za model.
 import numpy as np
 import torch
 
+from src.config import (
+    ACC_FFT_WINDOW,
+    GYRO_FFT_WINDOW,
+    IMU_AXES,
+    IMU_FFT_OVERLAP,
+    IMU_FRAMES_PER_IMAGE,
+    LOG_EPSILON,
+)
 from src.preprocessing.alaw import alaw_decode_all
-from src.preprocessing.dataset_builder import SEGMENT_LENGTH
 from src.preprocessing.filters import bandpass_mic
 from src.preprocessing.stft import (
     compute_spectrograms,
@@ -38,13 +45,15 @@ class RealtimePreprocessor:
         """
         Nastavi velikosti FFT oken in dolžino segmenta, enake kot pri učenju.
         """
-        # Enake velikosti FFT oken kot pri offline pripravi dataseta.
-        self.acc_window_size = 49
-        self.gyro_window_size = 211
+        # ista FFT okna kot pri treningu
+        self.acc_window_size = ACC_FFT_WINDOW
+        self.gyro_window_size = GYRO_FFT_WINDOW
 
-        # Koliko zaporednih spektrogramov sestavlja en 2D segment.
-        self.segment_length = SEGMENT_LENGTH
-        self.log_ranges = log_ranges  # min max iz treninga, tu uporabimo za normalizacijo, isto kot pa pri mikrofonu
+        # koliko FFT frame-ov gre v eno sliko
+        self.segment_length = IMU_FRAMES_PER_IMAGE
+
+        # min in max iz treninga, z njima normaliziramo (isto kot pri mikrofonu)
+        self.log_ranges = log_ranges
 
     def process(
         self,
@@ -70,7 +79,7 @@ class RealtimePreprocessor:
         if acc_spec is None or gyro_spec is None:
             return None
 
-        # Uporabimo normalizacijo z log_min in log_max (isti vrednosti med treningom tudi tu)
+        # normaliziramo z istim log_min in log_max kot pri treningu
         acc_spec = scale_log_spectrograms(
             acc_spec, self.log_ranges["log_min_acc"], self.log_ranges["log_max_acc"]
         )
@@ -102,7 +111,7 @@ class RealtimePreprocessor:
             return None
 
         # 50 % prekrivanje med okni
-        step = round(window_size * 0.5)
+        step = round(window_size * (1 - IMU_FFT_OVERLAP))
 
         # Signal razrežemo na manjša okna oblike (window_size, 3)
         windows = window_signal(
@@ -142,7 +151,7 @@ class RealtimePreprocessor:
         if signal.ndim != 2:
             raise ValueError("Signal mora biti 2D tabela.")
 
-        if signal.shape[1] != 3:
+        if signal.shape[1] != IMU_AXES:
             raise ValueError("Signal mora imeti obliko (N, 3).")
 
         return signal
@@ -150,12 +159,10 @@ class RealtimePreprocessor:
 
 class MicRealtimePreprocessor:
     """
-    Realtime preprocessing za mikrofon.
+    Realtime predobdelava za mikrofon.
 
-    Pomembno:
-    realtime mora uporabljati iste nastavitve kot training.
-    Če je bil model naučen na 5-sekundnih segmentih, potem mora tudi realtime
-    uporabljati 5-sekundni segment.
+    Nastavitve morajo bit enake kot pri treningu. Model je naučen na segmentih
+    po 186 frame-ov (okoli 3 s), zato tudi realtime vzame enako dolg segment.
     """
 
     def __init__(
@@ -172,13 +179,13 @@ class MicRealtimePreprocessor:
         Shrani parametre predobdelave mikrofona (enake kot pri učenju).
 
         Args:
-            log_min: float — spodnja meja log normalizacije iz treninga
-            log_max: float — zgornja meja log normalizacije iz treninga
-            sample_rate: float — vzorčevalna frekvenca mikrofona v Hz
-            segment_seconds: float — dolžina segmenta v sekundah
-            stft_window_seconds: float — dolžina enega STFT okna v sekundah
-            stft_overlap: float — prekrivanje STFT oken (npr. 0.5 = 50 %)
-            rms_threshold: float — prag glasnosti za zaznavo tišine
+            log_min: float - spodnja meja log normalizacije iz treninga
+            log_max: float - zgornja meja log normalizacije iz treninga
+            sample_rate: float - vzorčevalna frekvenca mikrofona v Hz
+            segment_seconds: float - dolžina segmenta v sekundah
+            stft_window_seconds: float - dolžina enega STFT okna v sekundah
+            stft_overlap: float - prekrivanje STFT oken (npr. 0.5 = 50 %)
+            rms_threshold: float - prag glasnosti za zaznavo tišine
         """
         self.log_min = log_min
         self.log_max = log_max
@@ -186,7 +193,7 @@ class MicRealtimePreprocessor:
         # Vzorčevalna frekvenca mikrofona, npr. 8000 Hz.
         self.sample_rate = sample_rate
 
-        # Dolžina segmenta v sekundah, npr. 5 s.
+        # Dolžina segmenta v sekundah, npr. 2.992 s.
         self.segment_seconds = segment_seconds
 
         # Dolžina enega STFT okna, npr. 0.032 s.
@@ -207,14 +214,14 @@ class MicRealtimePreprocessor:
 
         Primer:
         sample_rate = 8000 Hz
-        segment_seconds = 5 s
+        segment_seconds = 2.992 s
         stft_window_seconds = 0.032 s
 
         window_samples = 0.032 * 8000 = 256
         hop_samples = 256 * (1 - 0.5) = 128
-        segment_samples = 5 * 8000 = 40000
+        segment_samples = 2.992 * 8000 = 23936
 
-        frame_count = floor((40000 - 256) / 128) + 1 = 311
+        frame_count = floor((23936 - 256) / 128) + 1 = 186
         """
 
         segment_samples = int(self.segment_seconds * self.sample_rate)
@@ -238,10 +245,10 @@ class MicRealtimePreprocessor:
         vrne (None, rms).
 
         Args:
-            samples: np.ndarray — surovi A-law (int8) mikrofonski vzorci
+            samples: np.ndarray - surovi A-law (int8) mikrofonski vzorci
 
         Returns:
-            tuple(Tensor | None, float) — pripravljen tensor (ali None) in rms
+            tuple(Tensor | None, float) - pripravljen tensor (ali None) in rms
         """
         raw = np.asarray(samples, dtype=np.int8)
         pcm = alaw_decode_all(raw)
@@ -268,7 +275,7 @@ class MicRealtimePreprocessor:
 
         # Modelu damo zadnji segment, ker nas v realtime zanima trenutno stanje.
         spec = spectrograms[-self.segment_frames :].T
-        spec = np.log10(spec + 1e-10)
+        spec = np.log10(spec + LOG_EPSILON)
         spec = (spec - self.log_min) / (self.log_max - self.log_min)
         spec = np.clip(spec, 0.0, 1.0)
 

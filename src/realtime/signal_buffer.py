@@ -10,8 +10,7 @@ from collections import deque
 
 import numpy as np
 
-ID_GYRO = 1
-ID_ACC = 2
+from src.config import BUFFER_READY_RATIO, CHUNK_ID_ACC, CHUNK_ID_GYRO
 
 
 class SignalBuffer:
@@ -32,7 +31,7 @@ class SignalBuffer:
         gyro_sample_rate: float,
         acc_resolution: float,
         gyro_resolution: float,
-        ready_ratio: float = 0.95,
+        ready_ratio: float = BUFFER_READY_RATIO,
     ) -> None:
         """
         Args:
@@ -75,12 +74,12 @@ class SignalBuffer:
         chunks = packet.get("chunks", {})
 
         # ID 2 = accelerometer.
-        if ID_ACC in chunks:
-            self.add_acc_samples(chunks[ID_ACC])
+        if CHUNK_ID_ACC in chunks:
+            self.add_acc_samples(chunks[CHUNK_ID_ACC])
 
         # ID 1 = gyroscope.
-        if ID_GYRO in chunks:
-            self.add_gyro_samples(chunks[ID_GYRO])
+        if CHUNK_ID_GYRO in chunks:
+            self.add_gyro_samples(chunks[CHUNK_ID_GYRO])
 
     def add_acc_samples(self, samples: list[tuple[int, int, int]]) -> None:
         """
@@ -125,7 +124,7 @@ class SignalBuffer:
         Preveri, ali buffer vsebuje dovolj vzorcev za eno okno.
 
         Returns:
-            bool — True, ko ACC in GYRO dosežeta zahtevani delež vzorcev
+            bool - True, ko ACC in GYRO dosežeta zahtevani delež vzorcev
         """
         acc_required = int(self.acc_max_samples * self.ready_ratio)
         gyro_required = int(self.gyro_max_samples * self.ready_ratio)
