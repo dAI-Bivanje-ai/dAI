@@ -1,6 +1,7 @@
 import struct
 import numpy as np
 import serial
+import serial.tools.list_ports
 import time
 
 from src.config import (
@@ -13,26 +14,46 @@ from src.config import (
     SERIAL_BAUDRATE,
     SERIAL_READ_SIZE,
     SERIAL_TIMEOUT_SECONDS,
+    STM32_PID,
+    STM32_VID,
 )
 
 
 class DataLogger:
     """Razred za branje in parsanje binarnih podatkov s plošče STM32."""
 
-    DEFAULT_PORT: str = "/dev/tty.usbmodem207A356750471"
     DEFAULT_BAUDRATE: int = SERIAL_BAUDRATE
 
     def __init__(
         self,
-        port: str = DEFAULT_PORT,
+        port: str | None = None,
         baudrate: int = DEFAULT_BAUDRATE,
     ) -> None:
+        # None pomeni, da port poiščemo sami ob open()
         self.port = port
         self.baudrate = baudrate
         self.ser = None
 
+    def find_stm32_port(self) -> str | None:
+        """Poišče STM32 med serijskimi napravami po USB VID:PID."""
+        for port in serial.tools.list_ports.comports():
+            hwid = port.hwid.upper()
+
+            if f"VID:PID={STM32_VID}:{STM32_PID}" in hwid:
+                return port.device
+
+        return None
+
     def open(self) -> None:
         """Odpre serijski port za komunikacijo s ploščo."""
+        # vsaka plošča ima drugo ime porta, zato ga poiščemo po VID:PID
+        if self.port is None:
+            self.port = self.find_stm32_port()
+
+        if self.port is None:
+            raise RuntimeError("STM32 ni zaznan, preveri USB kabel.")
+
+        print(f"STM32 na {self.port}")
         self.ser = serial.Serial(
             self.port, self.baudrate, timeout=SERIAL_TIMEOUT_SECONDS
         )

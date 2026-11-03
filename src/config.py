@@ -140,9 +140,11 @@ IMU_BUFFER_SECONDS = 8.0
 # (prava frekvenca je lahko malo nižja, npr. 24.7 Hz namesto 25 Hz)
 BUFFER_READY_RATIO = 0.95
 
-# model kličemo samo na vsak N-ti paket, ker je predobdelava počasna
-IMU_PREDICT_EVERY_N_PACKETS = 12
-MIC_PREDICT_EVERY_N_PACKETS = 100
+# model kličemo na vsakih N sekund, ne na vsak N-ti paket,
+# ker firmware lahko pošilja različno velike pakete (prej ~120/s, zdaj ~10/s)
+# stabilizator rabi 9 od 10 enakih napovedi, zato menjava traja okoli 3 s + 9 * N
+IMU_PREDICT_EVERY_SECONDS = 0.1
+MIC_PREDICT_EVERY_SECONDS = 0.8
 
 # novo stanje sprejmemo šele, ko je vsaj 9 od zadnjih 10 napovedi enakih
 STABLE_PREDICTION_WINDOW = 10

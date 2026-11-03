@@ -7,6 +7,7 @@ stabilizacijo napovedi in izpis stanja s pripadajočimi opozorili.
 """
 
 import logging
+import time
 from collections import Counter, deque
 from dataclasses import dataclass
 
@@ -23,11 +24,11 @@ from src.config import (
     IMU_BUFFER_SECONDS,
     IMU_CLASSES,
     IMU_MODEL_PATH,
-    IMU_PREDICT_EVERY_N_PACKETS,
+    IMU_PREDICT_EVERY_SECONDS,
     MIC_CLASSES,
     MIC_IMAGE_SECONDS,
     MIC_MODEL_PATH,
-    MIC_PREDICT_EVERY_N_PACKETS,
+    MIC_PREDICT_EVERY_SECONDS,
     MIC_RMS_SILENCE_THRESHOLD,
     MIC_SAMPLE_RATE,
     MIC_STFT_OVERLAP,
@@ -82,8 +83,8 @@ class RealtimeConfig:
     buffer_ready_ratio: float = BUFFER_READY_RATIO
 
     # model kličemo samo na vsak N-ti paket, ker je predobdelava počasna
-    imu_predict_every_n_packets: int = IMU_PREDICT_EVERY_N_PACKETS
-    mic_predict_every_n_packets: int = MIC_PREDICT_EVERY_N_PACKETS
+    imu_predict_every_seconds: float = IMU_PREDICT_EVERY_SECONDS
+    mic_predict_every_seconds: float = MIC_PREDICT_EVERY_SECONDS
 
     # novo stanje sprejmemo šele, ko je dovolj zadnjih napovedi enakih
     stable_prediction_window: int = STABLE_PREDICTION_WINDOW
@@ -330,9 +331,9 @@ def run() -> None:
         min_ratio=CONFIG.stable_prediction_ratio,
     )
 
-    # Štejemo pakete, da inference ne teče na vsak paket, ampak periodično.
-    # Štejemo za inferenco na vsak n-ti paket
-    packet_count = 0
+    # kdaj smo nazadnje klicali vsak model (monotonic ne skoči, ko se ura sinhronizira)
+    last_imu_time = time.monotonic()
+    last_mic_time = time.monotonic()
     # Hranimo zadnje oznake za izpis
     last_imu_label: str | None = None
     last_mic_label: str | None = None
@@ -356,10 +357,11 @@ def run() -> None:
                 if CHUNK_ID_MIC in chunks:
                     mic_buf.extend(chunks[CHUNK_ID_MIC])
 
-                packet_count += 1
+                now = time.monotonic()
 
-                # Inference izvajamo na vsak N-ti paket
-                if packet_count % CONFIG.imu_predict_every_n_packets == 0:
+                # IMU napoved na vsakih imu_predict_every_seconds sekund
+                if now - last_imu_time >= CONFIG.imu_predict_every_seconds:
+                    last_imu_time = now
 
                     acc_window, gyro_window = signal_buffer.get_window()
 
@@ -374,8 +376,9 @@ def run() -> None:
                     if stable_imu_label is not None:
                         last_imu_label = stable_imu_label
                         print_status(last_imu_label, last_mic_label, last_rms)
-                # MIC inference izvajamo redkeje, ker je mikrofonski segment daljši.
-                if packet_count % CONFIG.mic_predict_every_n_packets == 0:
+                # MIC napoved redkeje, ker je mikrofonski segment daljši
+                if now - last_mic_time >= CONFIG.mic_predict_every_seconds:
+                    last_mic_time = now
 
                     mic_label, rms = run_mic_inference(
                         mic_model, mic_preprocessor, mic_buf
