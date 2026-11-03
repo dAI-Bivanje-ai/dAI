@@ -1,6 +1,7 @@
 import struct
 
-from src.realtime.packet_parser import LivePacketParser, SYNC
+from src.config import PACKET_SYNC_MARKER as SYNC
+from src.realtime.packet_parser import LivePacketParser
 
 
 def make_packet(counter: int, timestamp: int, chunks_data: bytes) -> bytes:

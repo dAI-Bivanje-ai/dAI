@@ -9,6 +9,8 @@ od aktivnosti.
 import torch
 import torch.nn as nn
 
+from src.config import NUM_IMU_CLASSES
+
 
 class SensorBranch(nn.Module):
     """
@@ -128,7 +130,7 @@ class CNNModel(nn.Module):
 
 def load_imu_checkpoint(path):
     checkpoint = torch.load(path, map_location="cpu")
-    model = CNNModel(num_classes=2)
+    model = CNNModel(num_classes=NUM_IMU_CLASSES)
     model.load_state_dict(checkpoint["model"])
     model.eval()
     return model, checkpoint["log_ranges"]

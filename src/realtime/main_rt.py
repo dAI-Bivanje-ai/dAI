@@ -9,70 +9,85 @@ stabilizacijo napovedi in izpis stanja s pripadajočimi opozorili.
 import logging
 from collections import Counter, deque
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 import torch
 
+from src.config import (
+    ACC_RESOLUTION,
+    ACC_SAMPLE_RATE,
+    BUFFER_READY_RATIO,
+    CHUNK_ID_MIC,
+    GYRO_RESOLUTION,
+    GYRO_SAMPLE_RATE,
+    IMU_BUFFER_SECONDS,
+    IMU_CLASSES,
+    IMU_MODEL_PATH,
+    IMU_PREDICT_EVERY_N_PACKETS,
+    MIC_CLASSES,
+    MIC_IMAGE_SECONDS,
+    MIC_MODEL_PATH,
+    MIC_PREDICT_EVERY_N_PACKETS,
+    MIC_RMS_SILENCE_THRESHOLD,
+    MIC_SAMPLE_RATE,
+    MIC_STFT_OVERLAP,
+    MIC_STFT_WINDOW_SECONDS,
+    NOTIFICATIONS,
+    NUM_MIC_CLASSES,
+    SILENCE_LABEL,
+    STABLE_PREDICTION_RATIO,
+    STABLE_PREDICTION_WINDOW,
+)
 from src.model.cnn_model import CNNModel as IMUModel, load_imu_checkpoint
 from src.model.cnn_model_mic import CNNModel as MicModel
-from src.realtime.packet_parser import ID_ACC, ID_GYRO, ID_MIC, LivePacketParser
+from src.realtime.packet_parser import LivePacketParser
 from src.realtime.preproc_rt import MicRealtimePreprocessor, RealtimePreprocessor
 from src.realtime.serial_reader import LiveSerialReader
 from src.realtime.signal_buffer import SignalBuffer
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-
-IMU_MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
-MIC_MODEL_PATH = ROOT_DIR / "models" / "mic_cnn.pt"
 
 
 @dataclass(frozen=True)
 class RealtimeConfig:
     """
-    Enotna konfiguracija za realtime sistem.
+    Nastavitve za realtime zanko.
 
-    - vse pomembne številke na enem mestu,
-    - lažje spreminjamo okna in frekvence,
-    - v kodi se izognemo magic numberjem.
+    Vrednosti pridejo iz src/config.py, tu so samo zbrane skupaj.
     """
 
-    # Pričakovana Fvz senzorjev
-    acc_sample_rate: float = 25.0
-    gyro_sample_rate: float = 105.0
-    mic_sample_rate: float = 8000.0
+    # frekvence senzorjev, ki jih pričakujemo
+    acc_sample_rate: float = ACC_SAMPLE_RATE
+    gyro_sample_rate: float = GYRO_SAMPLE_RATE
+    mic_sample_rate: float = MIC_SAMPLE_RATE
 
-    # Dolžina časovnega okna za izračun n ACC in GYRO vzorcev v SignalBuffer
-    imu_window_seconds: float = 8.0
+    # koliko sekund ACC in GYRO vzorcev drži SignalBuffer
+    imu_window_seconds: float = IMU_BUFFER_SECONDS
 
-    # Dolžina zvočnega segmenta (mora biti enaka kot v treningu!)
-    mic_segment_seconds: float = 2.992  # 23936 vzorcev = 186 frame-ov, kot pri treningu
+    # dolžina enega mic segmenta, mora bit enaka kot pri treningu (186 frame-ov)
+    mic_segment_seconds: float = MIC_IMAGE_SECONDS
 
-    # Parametri STFT za mikrofon.
-    # 0.032s pri 8000 Hz = 256 vzorcev.
-    mic_stft_window_seconds: float = 0.032
-    # 50% prekrivanje oken
-    mic_stft_overlap: float = 0.5
+    # STFT za mikrofon: 0.032 s pri 8000 Hz je 256 vzorcev
+    mic_stft_window_seconds: float = MIC_STFT_WINDOW_SECONDS
+    # okna se prekrivajo za polovico
+    mic_stft_overlap: float = MIC_STFT_OVERLAP
 
-    # Prag za tišino, če je rms < P ne kličemo modela za mic
-    mic_rms_threshold: float = 0.01
+    # če je rms pod tem pragom, je tišina in mic modela ne kličemo
+    mic_rms_threshold: float = MIC_RMS_SILENCE_THRESHOLD
 
-    # Rsoluciji int16 v fizikalne enote
-    acc_resolution: float = 1e-3
-    gyro_resolution: float = 8.75e-3
+    # s tem pomnožimo surove int16 vrednosti, da dobimo fizikalne enote
+    acc_resolution: float = ACC_RESOLUTION
+    gyro_resolution: float = GYRO_RESOLUTION
 
-    # Buffer se šteje kot pripravljen, ko ima vsaj 95 % pričakovanih vzorcev.
-    # Omogoča manjša odstopanja dejanske frekvence, npr. 24 Hz namesto 25 Hz.
-    buffer_ready_ratio: float = 0.95
+    # buffer je pripravljen, ko ima vsaj 95 % vzorcev, ki jih pričakujemo
+    # (prava frekvenca je lahko malo nižja, npr. 24.7 Hz namesto 25 Hz)
+    buffer_ready_ratio: float = BUFFER_READY_RATIO
 
-    # Optimizacija - Inferenca na vsak N-ti paket ker je preprocessing in napoved računsko draga
-    imu_predict_every_n_packets: int = 12
-    mic_predict_every_n_packets: int = 100
+    # model kličemo samo na vsak N-ti paket, ker je predobdelava počasna
+    imu_predict_every_n_packets: int = IMU_PREDICT_EVERY_N_PACKETS
+    mic_predict_every_n_packets: int = MIC_PREDICT_EVERY_N_PACKETS
 
-    # Stabilizacija napovedi.
-    # Sistem potrdi stanje šele, ko je dovolj zadnjih napovedi enakih.
-    stable_prediction_window: int = 10
-    stable_prediction_ratio: float = 0.90
+    # novo stanje sprejmemo šele, ko je dovolj zadnjih napovedi enakih
+    stable_prediction_window: int = STABLE_PREDICTION_WINDOW
+    stable_prediction_ratio: float = STABLE_PREDICTION_RATIO
 
 
 CONFIG = RealtimeConfig()
@@ -91,8 +106,8 @@ class PredictionStabilizer:
         Inicializira stabilizator.
 
         Args:
-            window_size: int — velikost drsečega okna zadnjih napovedi
-            min_ratio: float — najmanjši delež enakih napovedi za potrditev
+            window_size: int - velikost drsečega okna zadnjih napovedi
+            min_ratio: float - najmanjši delež enakih napovedi za potrditev
         """
         # Sliding window zadnjih N predictionov.
         self.window: deque[str] = deque(maxlen=window_size)
@@ -140,18 +155,6 @@ class PredictionStabilizer:
         return most_common_label
 
 
-# Pretvorba številčnega izhoda v ime razreda
-IMU_CLASSES = {0: "DELO", 1: "TELEFON"}
-MIC_CLASSES = {0: "GLASBA", 1: "POGOVOR"}
-
-# Kombinacije IMU + MIC razreda sestavljajo uporabniško opozorilo.
-NOTIFICATIONS = {
-    ("DELO", "GLASBA"): "Delaš, ampak glasba je preglasna",
-    ("DELO", "POGOVOR"): "Delaš, ampak nekdo govori v ozadju",
-    ("TELEFON", "GLASBA"): "Ne delaš ...",
-    ("TELEFON", "POGOVOR"): "Ne delaš ...",
-}
-
 # Mikrofon hrani zadnjih ~3 sekunde zvoka (en segment).
 # 2.992 s * 8000 Hz = 23936 vzorcev.
 MIC_MAXLEN = int(CONFIG.mic_segment_seconds * CONFIG.mic_sample_rate)
@@ -166,7 +169,7 @@ def load_mic_model() -> tuple[MicModel, float, float]:
     """
 
     checkpoint = torch.load(str(MIC_MODEL_PATH), map_location="cpu")
-    model = MicModel(num_classes=2)
+    model = MicModel(num_classes=NUM_MIC_CLASSES)
     model.load_state_dict(checkpoint["model"])
     model.eval()
     log_min = float(checkpoint["log_min"])
@@ -228,7 +231,7 @@ def run_mic_inference(
 
     # Če je signal tišina ali še ni dovolj dolg, preprocessor vrne None.
     if tensor is None:
-        return "TIŠINA", rms
+        return SILENCE_LABEL, rms
 
     # Model uporabimo samo za napoved, zato gradienti niso potrebni.
     with torch.no_grad():
@@ -251,7 +254,7 @@ def print_status(imu_label: str | None, mic_label: str | None, rms: float) -> No
 
     # Če mikrofon nima razreda, to obravnavamo kot tišino.
     if mic_label is None:
-        mic_str = "TIŠINA"
+        mic_str = SILENCE_LABEL
         notif_str = ""
     else:
         mic_str = mic_label
@@ -343,15 +346,15 @@ def run() -> None:
 
             for packet in packets:
                 # chunks je slovar senzorskih podatkov znotraj paketa.
-                # Ključi so ID_ACC, ID_GYRO, ID_MIC.
+                # Ključi so CHUNK_ID_ACC, CHUNK_ID_GYRO, CHUNK_ID_MIC.
                 chunks = packet.get("chunks", {})
 
                 # ACC in GYRO vzorce damo v SignalBuffer.
                 signal_buffer.add_packet(packet)
 
                 # Mikrofon ostane posebej, ker 1D
-                if ID_MIC in chunks:
-                    mic_buf.extend(chunks[ID_MIC])
+                if CHUNK_ID_MIC in chunks:
+                    mic_buf.extend(chunks[CHUNK_ID_MIC])
 
                 packet_count += 1
 

@@ -3,12 +3,24 @@ import numpy as np
 import serial
 import time
 
+from src.config import (
+    CHUNK_ID_ACC,
+    CHUNK_ID_GYRO,
+    CHUNK_ID_MAG,
+    CHUNK_ID_MIC,
+    MIC_SAMPLE_RATE,
+    PACKET_SYNC_MARKER,
+    SERIAL_BAUDRATE,
+    SERIAL_READ_SIZE,
+    SERIAL_TIMEOUT_SECONDS,
+)
+
 
 class DataLogger:
     """Razred za branje in parsanje binarnih podatkov s plošče STM32."""
 
     DEFAULT_PORT: str = "/dev/tty.usbmodem207A356750471"
-    DEFAULT_BAUDRATE: int = 115200
+    DEFAULT_BAUDRATE: int = SERIAL_BAUDRATE
 
     def __init__(
         self,
@@ -21,7 +33,9 @@ class DataLogger:
 
     def open(self) -> None:
         """Odpre serijski port za komunikacijo s ploščo."""
-        self.ser = serial.Serial(self.port, self.baudrate, timeout=1)
+        self.ser = serial.Serial(
+            self.port, self.baudrate, timeout=SERIAL_TIMEOUT_SECONDS
+        )
 
     def close(self) -> None:
         """Zapre serijski port, če je odprt."""
@@ -60,7 +74,7 @@ class DataLogger:
         raw_data_file = open(filename, "wb")
         try:
             while True:
-                data = self.ser.read(2048)
+                data = self.ser.read(SERIAL_READ_SIZE)
                 if data:
                     raw_data_file.write(data)
                     print(f"  {raw_data_file.tell()} bajtov", end="\r")
@@ -93,7 +107,7 @@ class DataLogger:
         """
         Odstrani byte stuffing iz payloada paketa.
 
-        Bajt 0xFE označuje escape sekvenco — naslednji bajt
+        Bajt 0xFE označuje escape sekvenco - naslednji bajt
         XOR-amo z 0xFE, da dobimo originalno vrednost.
 
         Args:
@@ -152,7 +166,7 @@ class DataLogger:
             dict | None: Slovar s podatki paketa ali None
                 če je paket neveljaven.
         """
-        if raw_packet[0:2] != b"\xff\xff":
+        if raw_packet[0:2] != PACKET_SYNC_MARKER:
             return None
 
         packet_counter = raw_packet[2]
@@ -176,7 +190,7 @@ class DataLogger:
             chunk_size = struct.unpack("<H", chunks_data[pos + 1 : pos + 3])[0] + 1
             chunk_data = chunks_data[pos + 4 : pos + 4 + chunk_size]
 
-            if chunk_id == 0x04:
+            if chunk_id == CHUNK_ID_MIC:
                 samples = np.frombuffer(chunk_data, dtype=np.int8).tolist()
 
             else:
@@ -270,23 +284,23 @@ class DataLogger:
         for packet in packets:
             ts = packet["timestamp"]
 
-            if 1 in packet["chunks"]:
-                for sample in packet["chunks"][1]:
+            if CHUNK_ID_GYRO in packet["chunks"]:
+                for sample in packet["chunks"][CHUNK_ID_GYRO]:
                     t_gyro.append(ts)
                     y_gyro.append(sample)
 
-            if 2 in packet["chunks"]:
-                for sample in packet["chunks"][2]:
+            if CHUNK_ID_ACC in packet["chunks"]:
+                for sample in packet["chunks"][CHUNK_ID_ACC]:
                     t_acc.append(ts)
                     y_acc.append(sample)
 
-            if 3 in packet["chunks"]:
-                for sample in packet["chunks"][3]:
+            if CHUNK_ID_MAG in packet["chunks"]:
+                for sample in packet["chunks"][CHUNK_ID_MAG]:
                     t_mag.append(ts)
                     y_mag.append(sample)
-            if 4 in packet["chunks"]:
-                for i, sample in enumerate(packet["chunks"][4]):
-                    t_mic.append(ts + i * (1000 / 8000))
+            if CHUNK_ID_MIC in packet["chunks"]:
+                for i, sample in enumerate(packet["chunks"][CHUNK_ID_MIC]):
+                    t_mic.append(ts + i * (1000 / MIC_SAMPLE_RATE))
                     y_mic.append(sample)
 
         np.savez(

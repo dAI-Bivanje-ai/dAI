@@ -5,24 +5,15 @@ Modul predobdela eno .bin sejo v spektrograme, naloži naučen IMU model in
 za vsak segment izpiše napovedano aktivnost skupaj s časovno oznako.
 """
 
-from pathlib import Path
 import numpy as np
 import torch
 
+from src.config import IMU_CLASSES, IMU_FRAMES_PER_IMAGE, IMU_MODEL_PATH, ROOT_DIR
 from src.model.cnn_model import CNNModel, load_imu_checkpoint
 from src.model.dataset_cnn import IMUDataset
-from src.preprocessing.dataset_builder import build_dataset, SEGMENT_LENGTH
+from src.preprocessing.dataset_builder import build_dataset
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-
-MODEL_PATH = ROOT_DIR / "models" / "imu_cnn.pt"
 TEMP_DATASET_PATH = ROOT_DIR / "temp_predict_dataset.npz"
-
-# pretvorba številčnega razreda v ime aktivnosti
-CLASS_NAMES = {
-    0: "DELO",
-    1: "TELEFON",
-}
 
 
 def predict_sesh(bin_file):
@@ -40,7 +31,7 @@ def predict_sesh(bin_file):
         (bin_file, 0),
     ]
 
-    model, log_ranges = load_imu_checkpoint(MODEL_PATH)
+    model, log_ranges = load_imu_checkpoint(IMU_MODEL_PATH)
     # y se ignorira ker pri predictingu ne rabimo labelov
     X_acc, X_gyro, y, _ = build_dataset(files, log_ranges)
 
@@ -78,11 +69,11 @@ def predict_sesh(bin_file):
             pred = output.argmax(dim=1).item()
 
             # številčni razred v besedo
-            total_sec = i * SEGMENT_LENGTH
+            total_sec = i * IMU_FRAMES_PER_IMAGE
             minutes = total_sec // 60
             seconds = total_sec % 60
 
-            print(f"{minutes:02d}:{seconds:02d}  {CLASS_NAMES[pred]}")
+            print(f"{minutes:02d}:{seconds:02d}  {IMU_CLASSES[pred]}")
 
         # izpis napovedi
         print(" ".join(pred_text))
