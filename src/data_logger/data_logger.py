@@ -12,6 +12,7 @@ from src.config import (
     MIC_SAMPLE_RATE,
     PACKET_SYNC_MARKER,
     SERIAL_BAUDRATE,
+    SERIAL_COMMAND_DELAY_SECONDS,
     SERIAL_READ_SIZE,
     SERIAL_TIMEOUT_SECONDS,
     STM32_PID,
@@ -77,13 +78,13 @@ class DataLogger:
         time.sleep(1)
 
         self.ser.write(b"CONFIG gyro 1\r\n")
-        time.sleep(0.1)
+        time.sleep(SERIAL_COMMAND_DELAY_SECONDS)
         self.ser.write(b"CONFIG accel 1\r\n")
-        time.sleep(0.1)
-        self.ser.write(b"CONFIG mag 1\r\n")
-        time.sleep(0.1)
+        time.sleep(SERIAL_COMMAND_DELAY_SECONDS)
+        self.ser.write(b"CONFIG mag 0\r\n")
+        time.sleep(SERIAL_COMMAND_DELAY_SECONDS)
         self.ser.write(b"CONFIG mic 1\r\n")
-        time.sleep(0.1)
+        time.sleep(SERIAL_COMMAND_DELAY_SECONDS)
 
         self.ser.reset_input_buffer()
         self.ser.write(b"STREAM\r\n")

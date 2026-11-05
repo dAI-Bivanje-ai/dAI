@@ -30,7 +30,8 @@ SERIAL_READ_SIZE = 2048
 SERIAL_TIMEOUT_SECONDS = 1
 
 # pavze med ukazi, ko zaganjamo stream
-SERIAL_COMMAND_DELAY_SECONDS = 0.1  # po vsakem CONFIG ukazu
+# pri 0.1 s STM32 izgubi CONFIG ukaz (mic ostane izklopljen), 0.2 s še dela
+SERIAL_COMMAND_DELAY_SECONDS = 0.5  # po vsakem CONFIG ukazu
 SERIAL_STREAM_DELAY_SECONDS = 0.5  # po OFF in po STREAM
 # pavza preden se spet poskusimo povezat
 SERIAL_RECONNECT_DELAY_SECONDS = 1
@@ -103,7 +104,7 @@ MIC_IMAGE_SAMPLES = (
 MIC_IMAGE_SECONDS = MIC_IMAGE_SAMPLES / MIC_SAMPLE_RATE  # 2.992 s
 
 # če je rms filtriranega zvoka pod tem pragom, je tišina in modela ne kličemo
-MIC_RMS_SILENCE_THRESHOLD = 0.01
+MIC_RMS_SILENCE_THRESHOLD = 0.001
 
 
 # normalizacija spektrogramov
@@ -141,7 +142,7 @@ IMU_BUFFER_SECONDS = 8.0
 BUFFER_READY_RATIO = 0.95
 
 # model kličemo na vsakih N sekund, ne na vsak N-ti paket,
-# ker firmware lahko pošilja različno velike pakete (prej ~120/s, zdaj ~10/s)
+# ker firmware lahko pošilja različno velike pakete (STREAM ~120/s, snemanje ~10/s)
 # stabilizator rabi 9 od 10 enakih napovedi, zato menjava traja okoli 3 s + 9 * N
 IMU_PREDICT_EVERY_SECONDS = 0.1
 MIC_PREDICT_EVERY_SECONDS = 0.8
