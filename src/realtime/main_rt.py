@@ -243,6 +243,10 @@ def run_mic_inference(
     return MIC_CLASSES[pred], rms
 
 
+# Zadnji izpisani oznaki, da konzola izpiše samo spremembe.
+last_printed_labels = None
+
+
 def print_status(imu_label: str | None, mic_label: str | None, rms: float) -> None:
     """
     Izpiše trenutno stanje sistema.
@@ -250,6 +254,14 @@ def print_status(imu_label: str | None, mic_label: str | None, rms: float) -> No
     Združi zadnjo IMU napoved in zadnjo MIC napoved.
     Če obstaja opozorilo za to kombinacijo, ga doda na konec izpisa.
     """
+    global last_printed_labels
+
+    # on_update se kliče po vsaki napovedi, izpišemo pa samo, ko se oznaka spremeni.
+    labels = (imu_label, mic_label)
+    if labels == last_printed_labels:
+        return
+    last_printed_labels = labels
+
     # Če IMU še ni dal napovedi, izpišemo vprašaj.
     imu_str = imu_label or "?"
 
@@ -374,7 +386,8 @@ def run_pipeline(on_update, reader):
                     # Če model vrne oznako, jo shranimo kot zadnje znano IMU stanje.
                     if stable_imu_label is not None:
                         last_imu_label = stable_imu_label
-                        on_update(last_imu_label, last_mic_label, last_rms)
+                    # po vsaki napovedi, da stran dobi svež rms in čas
+                    on_update(last_imu_label, last_mic_label, last_rms)
                 # MIC napoved redkeje, ker je mikrofonski segment daljši
                 if now - last_mic_time >= CONFIG.mic_predict_every_seconds:
                     last_mic_time = now
@@ -387,7 +400,7 @@ def run_pipeline(on_update, reader):
 
                     if stable_mic_label is not None:
                         last_mic_label = stable_mic_label
-                        on_update(last_imu_label, last_mic_label, last_rms)
+                    on_update(last_imu_label, last_mic_label, last_rms)
 
     except KeyboardInterrupt:
         # CTRL + C

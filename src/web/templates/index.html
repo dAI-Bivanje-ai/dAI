@@ -9,6 +9,8 @@
 
     <p>Gibanje: <strong id="imu">čakam…</strong></p>
     <p>Zvok: <strong id="mic">čakam…</strong></p>
+    <p>Glasnost (RMS): <span id="rms">-</span></p>
+    <p>Zadnja posodobitev: <span id="cas">-</span></p>
 
     <script>
         async function osvezi() {
@@ -33,6 +35,16 @@
             }
             if (stanje.mic !== null) {
                 document.getElementById("mic").textContent = stanje.mic;
+            }
+
+            // time je 0, dokler pipeline še ni naredil nobene napovedi
+            if(stanje.time > 0){
+                document.getElementById("rms").textContent = stanje.rms.toFixed(4);
+
+                // time.time() v Pythonu je v sekundah, Date.now() v JS pa v milisekundah
+                const zdaj = Date.now() / 1000;
+                const pred_sekundami = Math.round(zdaj - stanje.time);
+                document.getElementById("cas").textContent = "pred " + pred_sekundami + " s";
             }
         }
 
