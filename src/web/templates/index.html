@@ -2,44 +2,202 @@
 <html lang="sl">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>dAI</title>
+    <style>
+        /* barve na enem mestu, da jih lahko hitro spremenimo */
+        :root {
+            --ozadje: #f4f5f7;
+            --kartica: #ffffff;
+            --besedilo: #1d2330;
+            --sivo: #6b7280;
+            --rob: #e3e5e9;
+
+            --delo: #1f9d55;
+            --telefon: #d64545;
+            --glasba: #d97706;
+            --pogovor: #2563eb;
+            --tisina: #9aa1ac;
+        }
+
+        /* temni način, če ga ima uporabnik vklopljenega v sistemu */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --ozadje: #14171c;
+                --kartica: #1e232b;
+                --besedilo: #e8eaee;
+                --sivo: #9aa1ac;
+                --rob: #2c323c;
+            }
+        }
+
+        body {
+            margin: 0;
+            padding: 32px 16px;
+            background: var(--ozadje);
+            color: var(--besedilo);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        main {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin: 0 0 24px;
+            font-size: 28px;
+        }
+
+        .kartice {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* na ozkem zaslonu (telefon) kartice ena pod drugo */
+        @media (max-width: 520px) {
+            .kartice {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .kartica {
+            background: var(--kartica);
+            border: 1px solid var(--rob);
+            border-left: 8px solid var(--tisina);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .naslov {
+            margin: 0 0 8px;
+            color: var(--sivo);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .oznaka {
+            margin: 0;
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        /* barva levega roba glede na oznako (data-oznaka nastavi JS) */
+        .kartica[data-oznaka="DELO"]    { border-left-color: var(--delo); }
+        .kartica[data-oznaka="TELEFON"] { border-left-color: var(--telefon); }
+        .kartica[data-oznaka="GLASBA"]  { border-left-color: var(--glasba); }
+        .kartica[data-oznaka="POGOVOR"] { border-left-color: var(--pogovor); }
+        .kartica[data-oznaka="TIŠINA"]  { border-left-color: var(--tisina); }
+
+        /* napaka in prekinjena povezava: cela oznaka sive barve */
+        .kartica[data-oznaka="napaka"] .oznaka,
+        .kartica[data-oznaka="povezava prekinjena"] .oznaka {
+            color: var(--sivo);
+            font-size: 24px;
+        }
+
+        .glasnost {
+            margin-top: 16px;
+        }
+
+        .vrstica {
+            display: flex;
+            justify-content: space-between;
+            color: var(--sivo);
+            font-size: 14px;
+        }
+
+        .trak {
+            height: 10px;
+            margin-top: 8px;
+            background: var(--rob);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #rms_trak {
+            height: 100%;
+            width: 0%;
+            background: var(--pogovor);
+            transition: width 0.3s;
+        }
+
+        .noga {
+            margin-top: 16px;
+            color: var(--sivo);
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
-    <h1>dAI</h1>
+    <main>
+        <h1>dAI</h1>
 
-    <p>Gibanje: <strong id="imu">čakam…</strong></p>
-    <p>Zvok: <strong id="mic">čakam…</strong></p>
-    <p>Glasnost (RMS): <span id="rms">-</span></p>
-    <p>Zadnja posodobitev: <span id="cas">-</span></p>
+        <div class="kartice">
+            <div class="kartica" id="imu_kartica">
+                <p class="naslov">Gibanje</p>
+                <p class="oznaka" id="imu">čakam…</p>
+            </div>
+            <div class="kartica" id="mic_kartica">
+                <p class="naslov">Zvok</p>
+                <p class="oznaka" id="mic">čakam…</p>
+            </div>
+        </div>
+
+        <div class="kartica glasnost">
+            <div class="vrstica">
+                <span>Glasnost (RMS)</span>
+                <span id="rms">-</span>
+            </div>
+            <div class="trak"><div id="rms_trak"></div></div>
+        </div>
+
+        <p class="noga">Zadnja posodobitev: <span id="cas">-</span></p>
+    </main>
 
     <script>
+        // RMS, pri katerem je trak poln (glasen govor je bil okoli 0.06)
+        const RMS_POLN_TRAK = 0.06;
+
+        // nastavi besedilo oznake in kartici pove, katero barvo naj uporabi
+        function nastavi_oznako(ime, besedilo) {
+            document.getElementById(ime).textContent = besedilo;
+            document.getElementById(ime + "_kartica").dataset.oznaka = besedilo;
+        }
+
         async function osvezi() {
             const odgovor = await fetch("/api/state");
             const stanje = await odgovor.json();
 
             if(stanje.error){
-                document.getElementById("imu").textContent = "napaka";
-                document.getElementById("mic").textContent = "napaka";
+                nastavi_oznako("imu", "napaka");
+                nastavi_oznako("mic", "napaka");
                 return;
             }
 
             if(!stanje.connected){
-                document.getElementById("imu").textContent = "povezava prekinjena";
-                document.getElementById("mic").textContent = "povezava prekinjena";
+                nastavi_oznako("imu", "povezava prekinjena");
+                nastavi_oznako("mic", "povezava prekinjena");
                 return;
             }
 
             // null pomeni, da model še nima stabilne oznake
             if (stanje.imu !== null) {
-                document.getElementById("imu").textContent = stanje.imu;
+                nastavi_oznako("imu", stanje.imu);
             }
             if (stanje.mic !== null) {
-                document.getElementById("mic").textContent = stanje.mic;
+                nastavi_oznako("mic", stanje.mic);
             }
 
             // time je 0, dokler pipeline še ni naredil nobene napovedi
             if(stanje.time > 0){
                 document.getElementById("rms").textContent = stanje.rms.toFixed(4);
+
+                // širina traku v odstotkih, največ 100 %
+                const delez = Math.min(stanje.rms / RMS_POLN_TRAK, 1);
+                document.getElementById("rms_trak").style.width = (delez * 100) + "%";
 
                 // time.time() v Pythonu je v sekundah, Date.now() v JS pa v milisekundah
                 const zdaj = Date.now() / 1000;
