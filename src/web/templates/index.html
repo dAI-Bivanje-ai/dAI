@@ -15,6 +15,18 @@
             const odgovor = await fetch("/api/state");
             const stanje = await odgovor.json();
 
+            if(stanje.error){
+                document.getElementById("imu").textContent = "napaka";
+                document.getElementById("mic").textContent = "napaka";
+                return;
+            }
+
+            if(!stanje.connected){
+                document.getElementById("imu").textContent = "povezava prekinjena";
+                document.getElementById("mic").textContent = "povezava prekinjena";
+                return;
+            }
+
             // null pomeni, da model še nima stabilne oznake
             if (stanje.imu !== null) {
                 document.getElementById("imu").textContent = stanje.imu;
