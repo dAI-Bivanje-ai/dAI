@@ -150,3 +150,11 @@ MIC_PREDICT_EVERY_SECONDS = 0.8
 # novo stanje sprejmemo šele, ko je vsaj 9 od zadnjih 10 napovedi enakih
 STABLE_PREDICTION_WINDOW = 10
 STABLE_PREDICTION_RATIO = 0.90
+
+
+# spletna stran
+
+# samo 127.0.0.1, da stran vidiš le na tem računalniku
+WEB_HOST = "127.0.0.1"
+# port 5000 na macOS zaseda AirPlay (ControlCenter)
+WEB_PORT = 8000

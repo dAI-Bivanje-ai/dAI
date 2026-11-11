@@ -222,7 +222,7 @@ def run_mic_inference(
     """
 
     # Če ni vzorcev inference preskočimo
-    if not mic_buf:
+    if len(mic_buf) < MIC_MAXLEN:
         return None, 0.0
 
     # Deque pretvorimo v NumPy array.
@@ -266,7 +266,7 @@ def print_status(imu_label: str | None, mic_label: str | None, rms: float) -> No
     print(f"IMU={imu_str}  MIC={mic_str}  (rms={rms:.4f}){notif_str}")
 
 
-def run() -> None:
+def run_pipeline(on_update, reader):
     """
     Glavna realtime zanka.
 
@@ -306,7 +306,6 @@ def run() -> None:
     # Parser iz surovih bajtov naredi strukturirane pakete.
     parser = LivePacketParser()
     # Reader skrbi za serial povezavo s STM32 in vrača bajte
-    reader = LiveSerialReader()
     # SignalBuffer skrbi za ACC in GYRO.
     # Sam pobere pravilne chunke, pretvori vrednosti v fizikalne enote in hrani ločeni okni za ACC in GYRO
     signal_buffer = SignalBuffer(
@@ -375,7 +374,7 @@ def run() -> None:
                     # Če model vrne oznako, jo shranimo kot zadnje znano IMU stanje.
                     if stable_imu_label is not None:
                         last_imu_label = stable_imu_label
-                        print_status(last_imu_label, last_mic_label, last_rms)
+                        on_update(last_imu_label, last_mic_label, last_rms)
                 # MIC napoved redkeje, ker je mikrofonski segment daljši
                 if now - last_mic_time >= CONFIG.mic_predict_every_seconds:
                     last_mic_time = now
@@ -388,7 +387,7 @@ def run() -> None:
 
                     if stable_mic_label is not None:
                         last_mic_label = stable_mic_label
-                        print_status(last_imu_label, last_mic_label, last_rms)
+                        on_update(last_imu_label, last_mic_label, last_rms)
 
     except KeyboardInterrupt:
         # CTRL + C
@@ -403,4 +402,6 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-    run()
+    reader = LiveSerialReader()
+    # print("run_pipeline zagnan")
+    run_pipeline(print_status, reader)
